@@ -1,0 +1,19 @@
+plugins {
+	id 'groovy'
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	compile gradleApi()
+	compile 'com.datastax.cassandra:cassandra-driver-core:2.1.4'
+	compile "org.codehaus.groovy:groovy-all:2.4.0"
+}
+
+task run (dependsOn: 'classes', type: JavaExec) {
+    main = 'Migrate'
+	args = [host, port, keyspace, migrationsPath]
+    classpath = sourceSets.main.runtimeClasspath
+}
