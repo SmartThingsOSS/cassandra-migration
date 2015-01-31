@@ -23,3 +23,18 @@ task markAll (dependsOn: 'classes', type: JavaExec) {
 	systemProperties = [host:host, port:port, keyspace:keyspace, migrationPath:migrationsPath]
     classpath = sourceSets.main.runtimeClasspath
 }
+
+shadowJar {
+	archiveName "cassandra-migration-all.jar"
+}
+task release(type: Zip, dependsOn:shadowJar) {
+	from("$buildDir/libs"){
+		into "build/libs"
+	}
+	from("bin") {
+		into "bin"
+	}
+	
+	destinationDir file("$buildDir/release")
+	archiveName "cassandra-migration-${version}.zip"
+}
