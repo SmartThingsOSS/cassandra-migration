@@ -28,6 +28,7 @@ run ```bin/migrate``` to do the same as gradle run
 run ```bin/markAll``` to do the same as gradle markAll
 Parameters for host, keyspace, username, password, etc are available.  run bin/migrate -h to see options
 
+#### Development status
 This is very limited right now.  Things that should/could be fixed in no particular order.
 * Allow for migrating multiple keyspaces
 * Better error handling for bad parameters
