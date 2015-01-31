@@ -1,0 +1,44 @@
+function generateParams() {
+	args=""
+	while [ "$1" != "" ]; do
+		case $1 in
+			-h | --help )           usage
+									exit
+									;;
+			-H | --host )           shift
+									args="$args -Dhost=$1"
+									;;
+			-k | --keyspace )		shift
+									args="$args -Dkeyspace=$1"
+									;;
+			-m | --migration-path ) shift
+									args="$args -DmigrationPath=$1"
+									;;
+			-p | --port )			shift 
+									args="$args -Dport=$1"
+									;;
+			-P | --password )		shift
+									args="$args -Dpassword=$1"
+									;;
+			-u | --user )			shift
+									args="$args -Dusername=$1"
+									;;
+		esac
+		shift
+	done
+	echo $args
+}
+
+function usage 
+{
+	echo "
+		-h | --help				Print help message
+		-H | --host				Specify host url
+		-k | --keyspace			Specify keyspace
+		-m | --migration-path	Specify location of migration scripts
+		-p | --port				Specify port
+		-P | --password			Specify password
+		-u | --user				Specify user
+		"
+}
+

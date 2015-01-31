@@ -22,8 +22,16 @@ The script will loop through each file and do the following:
 * if it's not found, store the file name and md5 into 'migrations' without running the script
 
 
+#### Shell script support
+To run from a unix shell script, first run ```gradle shadow``` to generate a jar file
+run ```bin/migrate``` to do the same as gradle run
+run ```bin/markAll``` to do the same as gradle markAll
+Parameters for host, keyspace, username, password, etc are available.  run bin/migrate -h to see options
+
 This is very limited right now.  Things that should/could be fixed in no particular order.
 * Allow for migrating multiple keyspaces
+* Better error handling for bad parameters
+* Make the shell scripts work from any location, not just root dir
 
 
 

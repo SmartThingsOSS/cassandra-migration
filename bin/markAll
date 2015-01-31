@@ -1,0 +1,11 @@
+#!/bin/bash
+source ./bin/generateParams
+function execute() 
+{
+	command="java $* -cp build/libs/cassandra-migration-all.jar physicalgraph.migration.MarkAll"
+	echo $command
+	$command
+}
+
+params="$(generateParams $*)"
+execute $params
