@@ -3,7 +3,9 @@ Simple application for migrating cassandra databases
 ### What it does
 
 update gradle.properties with the appropriate connection information and location of migration scripts
-call ```gradle run```
+
+```gradle run```
+
 The script will loop through each file and do the following:
 * generate an md5.
 * lookup the file name in a columnfamily called 'migrations'
@@ -12,7 +14,8 @@ The script will loop through each file and do the following:
 	* if they match, report that the migration has already been run
 	* if they don't match report that the migration cannot be run
 
-call ```gradle markAll```
+```gradle markAll```
+
 The script will loop through each file and do the following:
 * generate an md5.
 * lookup the file name in a columnfamily called 'migrations'
