@@ -25,6 +25,8 @@ function generateParams() {
 			-m | --migration-path ) shift
 									args="$args -DmigrationPath=$1"
 									;;
+			-o | --override )		args="$args -Doverride=true"
+									;;
 			-p | --port )			shift 
 									args="$args -Dport=$1"
 									;;

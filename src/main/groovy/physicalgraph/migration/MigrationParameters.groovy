@@ -1,14 +1,15 @@
 package physicalgraph.migration
 class MigrationParameters {
-	String host = 'localhost'
-	int port = 9042
-	String keyspace = 'test'
-	String migrationsPath = '../migrations'
-	File migrationFile
-	String username
-	String password
+	Boolean override
 	Class handlerClass
+	File migrationFile
+	String host = 'localhost'
+	String keyspace = 'test'
 	String location
+	String migrationsPath = '../migrations'
+	String password
+	String username
+	int port = 9042
 
 	MigrationParameters() {
 		host = System.getProperty('host')?:'localhost'
@@ -23,6 +24,7 @@ class MigrationParameters {
 		password = System.getProperty('password')
 		handlerClass = Class.forName(System.getProperty('handlerClass')?:'physicalgraph.migration.MigrationHandler')
 		location = System.getProperty('location')
+		override = new Boolean(System.getProperty("override"))
 	}
 
 	String toString() {
