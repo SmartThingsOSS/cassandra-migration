@@ -72,7 +72,13 @@ public class CassandraConnection {
 
 	void runMigration(File file, String sha) {
 		markMigration(file, sha)
-		execute(file.text)
+
+		List<String> statements = file.text.split(';')
+		statements.each {
+			if (it.trim()) {
+				execute("$it;")
+			}
+		}
 	}
 	void markMigration(File file, String sha) {
 		execute("insert into migrations (name, sha) values (?, ?);", file.name, sha)
