@@ -13,14 +13,14 @@ dependencies {
 }
 
 task run (dependsOn: 'classes', type: JavaExec) {
-    main = 'physicalgraph.migration.Migrate'
+    main = 'physicalgraph.migration.MigrationExecutor'
 	systemProperties = [host:host, port:port, keyspace:keyspace, migrationPath:migrationsPath]
     classpath = sourceSets.main.runtimeClasspath
 }
 
 task markAll (dependsOn: 'classes', type: JavaExec) {
-    main = 'physicalgraph.migration.MarkAll'
-	systemProperties = [host:host, port:port, keyspace:keyspace, migrationPath:migrationsPath]
+    main = 'physicalgraph.migration.MigrationExecutor'
+	systemProperties = [host:host, port:port, keyspace:keyspace, migrationPath:migrationsPath, handlerClass:'physicalgraph.migration.MarkCompleteHandler']
     classpath = sourceSets.main.runtimeClasspath
 }
 

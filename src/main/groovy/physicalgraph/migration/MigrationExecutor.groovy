@@ -1,27 +1,24 @@
 package physicalgraph.migration
 
-import physicalgraph.Util
 import physicalgraph.cassandra.CassandraConnection
-
-class MarkAll {
-	
+class MigrationExecutor {
 	static void main(String[] args) {
 
 		MigrationParameters parameters = new MigrationParameters()
 		
-		println "Marking Migrations as run $parameters"
+		println "Running Cassandra Task $parameters"
 
 		CassandraConnection connection = new CassandraConnection(parameters)
+		def handler = parameters.handlerClass.newInstance(connection:connection, parameters:parameters)
 		try {
 			connection.connect()
 			connection.keyspace = parameters.keyspace
 			connection.setupMigration()
-			parameters.migrationsDir.eachFile { file ->
-				String md5 = Util.calculateMd5(file.text)
-				String existingMd5 = connection.getMigrationMd5(file.name)
-				if (!existingMd5) {
-					println "Marking migration ${file.name} as run!"
-					connection.markMigration(file, md5)
+			if (parameters.migrationFile) {
+				handler.handle(parameters.migrationFile)
+			} else {
+				parameters.migrationsDir.eachFile { file ->
+					handler.handle(file)
 				}
 			}
 		} finally {
@@ -29,4 +26,3 @@ class MarkAll {
 		}
 	}
 }
-

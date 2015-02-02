@@ -2,6 +2,11 @@ Simple application for migrating cassandra databases
 
 ### What it does
 
+
+
+
+
+
 update gradle.properties with the appropriate connection information and location of migration scripts
 
 ```gradle run```
@@ -32,8 +37,4 @@ To run from a unix shell script, first run ```gradle shadow``` to generate a jar
 This is very limited right now.  Things that should/could be fixed in no particular order.
 * Allow for migrating multiple keyspaces
 * Better error handling for bad parameters
-* Make the shell scripts work from any location, not just root dir
-
-
-
 
