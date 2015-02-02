@@ -19,6 +19,9 @@ function generateParams() {
 			-k | --keyspace )		shift
 									args="$args -Dkeyspace=$1"
 									;;
+			-l | --location )       shift
+									args="$args -Dlocation=$1 -DhandlerClass=physicalgraph.migration.ExecuteExternallyHandler"
+									;;
 			-m | --migration-path ) shift
 									args="$args -DmigrationPath=$1"
 									;;
@@ -45,6 +48,7 @@ function usage
 		-h | --help				Print help message
 		-H | --host				Specify host url
 		-k | --keyspace			Specify keyspace
+		-l | --location         Specify location of cassandra-cli (Only necessary if your migrations are not in CQL)
 		-m | --migration-path	Specify location of migration scripts
 		-p | --port				Specify port
 		-P | --password			Specify password

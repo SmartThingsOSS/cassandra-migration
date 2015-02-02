@@ -8,6 +8,7 @@ class MigrationParameters {
 	String username
 	String password
 	Class handlerClass
+	String location
 
 	MigrationParameters() {
 		host = System.getProperty('host')?:'localhost'
@@ -21,6 +22,7 @@ class MigrationParameters {
 		username = System.getProperty('username')
 		password = System.getProperty('password')
 		handlerClass = Class.forName(System.getProperty('handlerClass')?:'physicalgraph.migration.MigrationHandler')
+		location = System.getProperty('location')
 	}
 
 	String toString() {
