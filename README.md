@@ -24,11 +24,12 @@ If you've already run scripts you can use the -c option to mark them as 'complet
 If you wish to run a single file use the -f option and specify a file
 
 
-#### Development status
-This is very limited right now.  Things that should/could be fixed in no particular order.
-* Allow for migrating multiple keyspaces
+### Development status
+This is limited right now.  Things that should/could be fixed in no particular order.
 * Better error handling for bad parameters
-* Add override parameter to ignore md5 mismatch
+* Better support for non-local environments
+* Allow for migrating multiple keyspaces (though this can be handled by leaving keyspace migrations in separate directories)
+
 
 ### Executing from source
 update gradle.properties with the appropriate connection information and location of migration scripts
