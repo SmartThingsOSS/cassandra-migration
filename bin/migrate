@@ -5,24 +5,24 @@ function generateParams() {
 	while [ "$1" != "" ]; do
 		case $1 in
 
-			-c | --complete )       args="$args -DhandlerClass=physicalgraph.migration.MarkCompleteHandler"
+			-c | --complete )		args="$args -DhandlerClass=physicalgraph.migration.MarkCompleteHandler"
 									;;
-			-f | --file )           shift
+			-f | --file )			shift
 									args="$args -DmigrationFile=$1"
 									;;
-			-h | --help )           usage
+			-h | --help )			usage
 									exit
 									;;
-			-H | --host )           shift
+			-H | --host )			shift
 									args="$args -Dhost=$1"
 									;;
 			-k | --keyspace )		shift
 									args="$args -Dkeyspace=$1"
 									;;
-			-l | --location )       shift
+			-l | --location )		shift
 									args="$args -Dlocation=$1 -DhandlerClass=physicalgraph.migration.ExecuteExternallyHandler"
 									;;
-			-m | --migration-path ) shift
+			-m | --migration-path )	shift
 									args="$args -DmigrationPath=$1"
 									;;
 			-o | --override )		args="$args -Doverride=true"
@@ -50,7 +50,7 @@ function usage
 		-h | --help				Print help message
 		-H | --host				Specify host url
 		-k | --keyspace			Specify keyspace
-		-l | --location         Specify location of cassandra-cli (Only necessary if your migrations are not in CQL)
+		-l | --location			Specify location of cassandra-cli (Only necessary if your migrations are not in CQL)
 		-m | --migration-path	Specify location of migration scripts
 		-p | --port				Specify port
 		-P | --password			Specify password
