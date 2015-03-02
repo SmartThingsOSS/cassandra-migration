@@ -70,8 +70,8 @@ public class CassandraConnection {
 		}
 	}
 
-	void runMigration(File file, String sha) {
-		if(markMigration(file, sha)){
+	void runMigration(File file, String sha, boolean override = false) {
+		if(markMigration(file, sha, override)){
 			List<String> statements = file.text.split(';')
 			statements.each {
 				if (it.trim()) {
@@ -85,11 +85,16 @@ public class CassandraConnection {
 
 	}
 
-	boolean markMigration(File file, String sha) {
-		def result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) IF NOT EXISTS;", file.name, sha)
+	boolean markMigration(File file, String sha, boolean override = false) {
+
+        def ifClause = override ? "" : "IF NOT EXISTS"
+
+        //We use the light weight transaction to make sure another process hasn't started the work, but only if we aren't overriding
+		def result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) ${ifClause};", file.name, sha)
+
 		//We know by having IF NOT EXISTS there will always be a row returned with a column of applied
-		return result.all().get(0).getBool("applied")
-	}
+		return override ? true : result.all().get(0).getBool("applied")
+    }
 
 	String getMigrationMd5(String fileName) {
 		def result = execute("SELECT sha FROM migrations WHERE name=?", fileName)

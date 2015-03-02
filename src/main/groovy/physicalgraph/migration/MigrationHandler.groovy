@@ -17,7 +17,7 @@ class MigrationHandler {
 			throw new Exception("ERROR! md5 of ${file.name} is different from the last time it was run!")
 		} else {
 			println "Running migration ${file.name}"
-			connection.runMigration(file, md5)
+			connection.runMigration(file, md5, parameters.override)
 		}
 	}
 }
