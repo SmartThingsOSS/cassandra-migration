@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-	compile 'com.datastax.cassandra:cassandra-driver-core:2.1.4'
+	compile 'com.datastax.cassandra:cassandra-driver-core:2.1.6'
 	compile "org.codehaus.groovy:groovy-all:2.4.0"
 }
 
@@ -20,7 +20,7 @@ task run (dependsOn: 'classes', type: JavaExec) {
 
 task markAll (dependsOn: 'classes', type: JavaExec) {
     main = 'physicalgraph.migration.MigrationExecutor'
-	systemProperties = [host:host, port:port, keyspace:keyspace, migrationPath:migrationsPath, handlerClass:'physicalgraph.migration.MarkCompleteHandler']
+	systemProperties = [host:host, port:port, keyspace:keyspace, migrationPath:migrationsPath, handlerClass:'MarkCompleteHandler']
     classpath = sourceSets.main.runtimeClasspath
 }
 
@@ -34,7 +34,7 @@ task release(type: Zip, dependsOn:shadowJar) {
 	from("bin") {
 		into "bin"
 	}
-	
+
 	destinationDir file("$buildDir/release")
 	archiveName "cassandra-migration-${version}.zip"
 }

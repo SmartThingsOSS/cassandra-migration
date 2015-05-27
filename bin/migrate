@@ -5,7 +5,7 @@ function generateParams() {
 	while [ "$1" != "" ]; do
 		case $1 in
 
-			-c | --complete )		args="$args -DhandlerClass=physicalgraph.migration.MarkCompleteHandler"
+			-c | --complete )		args="$args -DhandlerClass=MarkCompleteHandler"
 									;;
 			-f | --file )			shift
 									args="$args -DmigrationFile=$1"
@@ -20,14 +20,14 @@ function generateParams() {
 									args="$args -Dkeyspace=$1"
 									;;
 			-l | --location )		shift
-									args="$args -Dlocation=$1 -DhandlerClass=physicalgraph.migration.ExecuteExternallyHandler"
+									args="$args -Dlocation=$1 -DhandlerClass=ExternalHandler"
 									;;
 			-m | --migration-path )	shift
 									args="$args -DmigrationPath=$1"
 									;;
 			-o | --override )		args="$args -Doverride=true"
 									;;
-			-p | --port )			shift 
+			-p | --port )			shift
 									args="$args -Dport=$1"
 									;;
 			-P | --password )		shift
@@ -42,7 +42,7 @@ function generateParams() {
 	echo $args
 }
 
-function usage 
+function usage
 {
 	echo "
 		-c | --complete			Mark files as complete without running the script
@@ -58,7 +58,7 @@ function usage
 		"
 }
 
-function execute() 
+function execute()
 {
 	command="java $* -cp ${BASH_SOURCE%/*}/..//build/libs/cassandra-migration-all.jar physicalgraph.migration.MigrationExecutor"
 	echo $command
