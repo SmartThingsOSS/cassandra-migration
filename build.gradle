@@ -1,7 +1,18 @@
-plugins {
-	id 'groovy'
-	id 'com.github.johnrengelman.shadow' version '1.2.0'
+buildscript {
+	repositories {
+		jcenter()
+		mavenCentral()
+		mavenLocal()
+	}
+
+	dependencies {
+		classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.1'
+	}
 }
+
+
+apply plugin: 'java'
+apply plugin: 'com.github.johnrengelman.shadow'
 
 repositories {
 	mavenCentral()
@@ -27,6 +38,7 @@ task markAll(dependsOn: 'classes', type: JavaExec) {
 shadowJar {
 	archiveName "cassandra-migration-all.jar"
 }
+
 task release(type: Zip, dependsOn: shadowJar) {
 	from("$buildDir/libs") {
 		into "build/libs"
