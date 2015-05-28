@@ -1,13 +1,9 @@
 package st.migration;
 
-import org.codehaus.groovy.runtime.DefaultGroovyMethods;
-import org.codehaus.groovy.runtime.ResourceGroovyMethods;
-import org.codehaus.groovy.runtime.StringGroovyMethods;
 import st.cassandra.CassandraConnection;
 import st.util.Util;
 
 import java.io.File;
-import java.io.IOException;
 
 public class MarkCompleteHandler implements Handler {
 	public MarkCompleteHandler(CassandraConnection connection) {
@@ -16,15 +12,10 @@ public class MarkCompleteHandler implements Handler {
 
 	@Override
 	public void handle(final File file) {
-		String md5 = null;
-		try {
-			md5 = Util.calculateMd5(ResourceGroovyMethods.getText(file));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		String md5 = Util.calculateMd5(file);
 		String existingMd5 = connection.getMigrationMd5(file.getName());
-		if (!StringGroovyMethods.asBoolean(existingMd5)) {
-			DefaultGroovyMethods.println(this, "Marking migration " + file.getName() + " as run!");
+		if (existingMd5 == null) {
+			System.out.println("Marking migration " + file.getName() + " as run!");
 			connection.markMigration(file, md5);
 		}
 

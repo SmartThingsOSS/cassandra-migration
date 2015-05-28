@@ -60,7 +60,7 @@ function usage
 
 function execute()
 {
-	command="java $* -cp ${BASH_SOURCE%/*}/..//build/libs/cassandra-migration-all.jar physicalgraph.migration.MigrationExecutor"
+	command="java $* -cp ${BASH_SOURCE%/*}/..//build/libs/cassandra-migration-all.jar st.migration.MigrationExecutor"
 	echo $command
 	$command
 }

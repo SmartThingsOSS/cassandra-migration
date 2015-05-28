@@ -1,43 +1,25 @@
 package st.util;
 
-import groovy.lang.Closure;
-import groovy.lang.Reference;
-import org.codehaus.groovy.runtime.StringGroovyMethods;
+import com.google.common.base.Charsets;
+import com.google.common.hash.Hashing;
+import com.google.common.io.Files;
 
+import java.io.File;
 import java.io.IOException;
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.nio.file.Paths;
 
 public class Util {
-	public static String calculateMd5(String text) {
 
-		final Reference<String> strippedText = new Reference<String>("");
+	public static String calculateMd5(File file) {
 		try {
-			StringGroovyMethods.eachLine(text, new Closure<String>(null, null) {
-				public String doCall(String it) {
-					return setGroovyRef(strippedText, strippedText.get() + it.trim());
-				}
-
-				public String doCall() {
-					return doCall(null);
-				}
-
-			});
+			return calculateMd5(Files.toString(file, Charsets.UTF_8));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		MessageDigest digest = null;
-		try {
-			digest = MessageDigest.getInstance("MD5");
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		}
-		return StringGroovyMethods.padLeft(new BigInteger(1, digest.digest(strippedText.get().getBytes())).toString(16), 32, "0");
+		return null;
 	}
 
-	private static <T> T setGroovyRef(Reference<T> ref, T newValue) {
-		ref.set(newValue);
-		return newValue;
+	public static String calculateMd5(String text) {
+		return Hashing.md5().newHasher().putString(text, Charsets.UTF_8).hash().toString();
 	}
 }

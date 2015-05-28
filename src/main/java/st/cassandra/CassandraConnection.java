@@ -3,20 +3,18 @@ package st.cassandra;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
-import groovy.lang.Closure;
-import groovy.transform.CompileStatic;
-import groovy.util.logging.Slf4j;
-import org.codehaus.groovy.runtime.DefaultGroovyMethods;
-import org.codehaus.groovy.runtime.ResourceGroovyMethods;
-import org.codehaus.groovy.runtime.StringGroovyMethods;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import st.migration.MigrationParameters;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-@Slf4j
 public class CassandraConnection implements AutoCloseable {
 
 	public CassandraConnection(MigrationParameters parameters) {
@@ -61,7 +59,7 @@ public class CassandraConnection implements AutoCloseable {
 				"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
 			keyspace);
 
-		if (DefaultGroovyMethods.size(existingMigration) == 0) {
+		if (existingMigration.one() == null) {
 			execute("CREATE TABLE IF NOT EXISTS migrations " +
 				"(name text, sha text, " +
 				"PRIMARY KEY (name));");
@@ -71,27 +69,21 @@ public class CassandraConnection implements AutoCloseable {
 
 	public void runMigration(File file, String sha, boolean override) {
 		if (markMigration(file, sha, override)) {
-			List<String> statements = null;
+			List<String> statements = Collections.emptyList();
 			try {
-				statements = Arrays.asList(ResourceGroovyMethods.getText(file).split(";"));
+				statements = Arrays.asList(Files.toString(file, Charsets.UTF_8).split(";"));
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			DefaultGroovyMethods.each(statements, new Closure<ResultSet>(this, this) {
-				public ResultSet doCall(String it) {
-					if (StringGroovyMethods.asBoolean(it.trim())) {
-						return execute(it + ";");
-					}
-					return null;
-				}
 
-				public ResultSet doCall() {
-					return doCall(null);
+			for (String statement : statements) {
+				String trimmedStatement = statement.trim();
+				if (!trimmedStatement.equals("")) {
+					execute(trimmedStatement + ";");
 				}
-
-			});
+			}
 		} else {
-			DefaultGroovyMethods.println(this, "Not running " + String.valueOf(file) + " as another process has already marked it.");
+			System.out.println("Not running " + String.valueOf(file) + " as another process has already marked it.");
 		}
 
 	}
@@ -121,7 +113,7 @@ public class CassandraConnection implements AutoCloseable {
 			return null;
 		}
 
-		return DefaultGroovyMethods.first(result.all()).getString("sha");
+		return result.one().getString("sha");
 	}
 
 	public Cluster getCluster() {

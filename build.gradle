@@ -9,26 +9,26 @@ repositories {
 
 dependencies {
 	compile 'com.datastax.cassandra:cassandra-driver-core:2.1.6'
-	compile "org.codehaus.groovy:groovy-all:2.4.0"
+	compile 'com.google.guava:guava:18.0'
 }
 
-task run (dependsOn: 'classes', type: JavaExec) {
-    main = 'physicalgraph.migration.MigrationExecutor'
-	systemProperties = [host:host, port:port, keyspace:keyspace, migrationPath:migrationsPath]
-    classpath = sourceSets.main.runtimeClasspath
+task run(dependsOn: 'classes', type: JavaExec) {
+	main = 'st.migration.MigrationExecutor'
+	systemProperties = [host: host, port: port, keyspace: keyspace, migrationPath: migrationsPath]
+	classpath = sourceSets.main.runtimeClasspath
 }
 
-task markAll (dependsOn: 'classes', type: JavaExec) {
-    main = 'physicalgraph.migration.MigrationExecutor'
-	systemProperties = [host:host, port:port, keyspace:keyspace, migrationPath:migrationsPath, handlerClass:'MarkCompleteHandler']
-    classpath = sourceSets.main.runtimeClasspath
+task markAll(dependsOn: 'classes', type: JavaExec) {
+	main = 'st.migration.MigrationExecutor'
+	systemProperties = [host: host, port: port, keyspace: keyspace, migrationPath: migrationsPath, handlerClass: 'MarkCompleteHandler']
+	classpath = sourceSets.main.runtimeClasspath
 }
 
 shadowJar {
 	archiveName "cassandra-migration-all.jar"
 }
-task release(type: Zip, dependsOn:shadowJar) {
-	from("$buildDir/libs"){
+task release(type: Zip, dependsOn: shadowJar) {
+	from("$buildDir/libs") {
 		into "build/libs"
 	}
 	from("bin") {

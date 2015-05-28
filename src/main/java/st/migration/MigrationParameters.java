@@ -1,9 +1,5 @@
 package st.migration;
 
-import groovy.transform.CompileStatic;
-import org.codehaus.groovy.runtime.DefaultGroovyMethods;
-import org.codehaus.groovy.runtime.StringGroovyMethods;
-
 import java.io.File;
 
 public class MigrationParameters {
@@ -20,17 +16,12 @@ public class MigrationParameters {
 	private int port = 9042;
 
 	public MigrationParameters() {
-		final String property = System.getProperty("host");
-		host = StringGroovyMethods.asBoolean(property) ? property : "localhost";
-		port = StringGroovyMethods.asBoolean(System.getProperty("port")) ? StringGroovyMethods.asType(System.getProperty("port"), Integer.class) : 9042;
-		final String ks = System.getProperty("keyspace");
-		keyspace = StringGroovyMethods.asBoolean(ks) ? ks : "test";
-		final String property2 = System.getProperty("migrationPath");
-		migrationsPath = StringGroovyMethods.asBoolean(property2) ? property2 : "../migrations";
-		String filePath = System.getProperty("migrationFile");
-		if (StringGroovyMethods.asBoolean(filePath)) {
-			migrationFile = new File(filePath);
-		}
+		host = System.getProperty("host", "localhost");
+		port = Integer.parseInt(System.getProperty("port", "9042"));
+		keyspace = System.getProperty("keyspace", "test");
+		migrationsPath = System.getProperty("migrationPath", "../migrations");
+
+		migrationFile = new File(System.getProperty("migrationFile"));
 
 		username = System.getProperty("username");
 		password = System.getProperty("password");
@@ -60,7 +51,7 @@ public class MigrationParameters {
 
 	public String toString() {
 		final File file = migrationFile;
-		return "\n		Host: " + host + "\n		Port: " + String.valueOf(port) + "\n		Keyspace: " + keyspace + "\n		Migrations Directory: " + migrationsPath + "\n		Migrations File: " + String.valueOf(DefaultGroovyMethods.asBoolean(file) ? file : "All") + "\n		";
+		return "\n		Host: " + host + "\n		Port: " + String.valueOf(port) + "\n		Keyspace: " + keyspace + "\n		Migrations Directory: " + migrationsPath + "\n		Migrations File: " + "\n		";
 	}
 
 	public File getMigrationsDir() {
