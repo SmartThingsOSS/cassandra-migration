@@ -2,30 +2,57 @@ package st.cassandra;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.SSLOptions;
 import com.datastax.driver.core.Session;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import st.migration.MigrationParameters;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.security.KeyStore;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 public class CassandraConnection implements AutoCloseable {
 
+	private static String[] cipherSuites = new String[2];
+	private String truststorePath;
+	private String truststorePassword;
+	private String keystorePath;
+	private String keystorePassword;
+	private Cluster cluster;
+	private Session session;
+	private String keyspace;
+	private String host;
+	private int port;
+	private String username;
+	private String password;
+
 	public CassandraConnection(MigrationParameters parameters) {
+		cipherSuites[0] = "TLS_RSA_WITH_AES_128_CBC_SHA";
+		cipherSuites[1] = "TLS_RSA_WITH_AES_256_CBC_SHA";
+
 		this.host = parameters.getHost();
 		this.port = parameters.getPort();
 		this.username = parameters.getUsername();
 		this.password = parameters.getPassword();
 	}
 
-	public void connect() {
+	public void connect() throws Exception {
 		Cluster.Builder builder = Cluster.builder().addContactPoint(host).withPort(port);
+
+		if (truststorePath != null && truststorePassword != null && keystorePath != null && keystorePassword != null) {
+			SSLContext sslContext = getSSLContext(truststorePath, truststorePassword, keystorePath, keystorePassword);
+			builder.withSSL(new SSLOptions(sslContext, cipherSuites));
+		}
 
 		if (username != null && password != null) {
 			builder.withCredentials(username, password);
@@ -38,6 +65,26 @@ public class CassandraConnection implements AutoCloseable {
 	@Override
 	public void close() {
 		cluster.close();
+	}
+
+	private static SSLContext getSSLContext(String truststorePath, String truststorePassword, String keystorePath, String keystorePassword) throws Exception {
+		FileInputStream tsf = new FileInputStream(truststorePath);
+		FileInputStream ksf = new FileInputStream(keystorePath);
+		SSLContext ctx = SSLContext.getInstance("SSL");
+
+		KeyStore ts = KeyStore.getInstance("JKS");
+		ts.load(tsf, truststorePassword.toCharArray());
+		TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		tmf.init(ts);
+
+		KeyStore ks = KeyStore.getInstance("JKS");
+		ks.load(ksf, keystorePassword.toCharArray());
+		KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+
+		kmf.init(ks, keystorePassword.toCharArray());
+
+		ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), new SecureRandom());
+		return ctx;
 	}
 
 	public void setKeyspace(String keyspace) {
@@ -168,11 +215,35 @@ public class CassandraConnection implements AutoCloseable {
 		this.password = password;
 	}
 
-	private Cluster cluster;
-	private Session session;
-	private String keyspace;
-	private String host;
-	private int port;
-	private String username;
-	private String password;
+	public String getTruststorePath() {
+		return truststorePath;
+	}
+
+	public void setTruststorePath(String truststorePath) {
+		this.truststorePath = truststorePath;
+	}
+
+	public String getTruststorePassword() {
+		return truststorePassword;
+	}
+
+	public void setTruststorePassword(String truststorePassword) {
+		this.truststorePassword = truststorePassword;
+	}
+
+	public String getKeystorePath() {
+		return keystorePath;
+	}
+
+	public void setKeystorePath(String keystorePath) {
+		this.keystorePath = keystorePath;
+	}
+
+	public String getKeystorePassword() {
+		return keystorePassword;
+	}
+
+	public void setKeystorePassword(String keystorePassword) {
+		this.keystorePassword = keystorePassword;
+	}
 }
