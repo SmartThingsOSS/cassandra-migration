@@ -10,9 +10,16 @@ buildscript {
 	}
 }
 
+group = "smartthings"
+version = file('version.txt').text.trim()
+
 
 apply plugin: 'java'
 apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: "maven-publish"
+
+sourceCompatibility = "1.7"
+targetCompatibility = "1.7"
 
 repositories {
 	mavenCentral()
@@ -35,18 +42,29 @@ task markAll(dependsOn: 'classes', type: JavaExec) {
 	classpath = sourceSets.main.runtimeClasspath
 }
 
-shadowJar {
-	archiveName "cassandra-migration-all.jar"
+task sourceJar(type: Jar) {
+		classifier "sources"
+		from sourceSets.main.allJava
 }
 
-task release(type: Zip, dependsOn: shadowJar) {
-	from("$buildDir/libs") {
-		into "build/libs"
+publishing {
+	publications {
+		main(MavenPublication) {
+			from components.java
+			artifact sourceJar
+		}
 	}
-	from("bin") {
-		into "bin"
+	repositories {
+		maven {
+			credentials {
+				username smartThingsArtifactoryUserName
+				password smartThingsArtifactoryPassword
+			}
+			if (version.endsWith('SNAPSHOT')) {
+				url "http://artifactory.smartthings.com/libs-snapshot-local"
+			} else {
+				url "http://artifactory.smartthings.com/libs-release-local"
+			}
+		}
 	}
-
-	destinationDir file("$buildDir/release")
-	archiveName "cassandra-migration-${version}.zip"
 }
