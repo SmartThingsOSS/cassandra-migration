@@ -29,7 +29,5 @@ deployment:
   release:
     branch: release
     commands:
-      - ./gradlew zipDependencies -PsmartThingsArtifactoryUserName=$ARTIFACTORY_USERNAME -PsmartThingsArtifactoryPassword=$ARTIFACTORY_PASSWORD
       - ./gradlew publish -PsmartThingsArtifactoryUserName=$ARTIFACTORY_USERNAME -PsmartThingsArtifactoryPassword=$ARTIFACTORY_PASSWORD
-      - ~/build-common/circle-ci/s3_upload.py --branch=release --artifact=st-slf4j/build/distributions/st-slf4j-$(cat version.txt).zip --buckets='smartthings-provisioning' --remotepath='packages/logging'
       - ~/build-common/circle-ci/release.py --branch=release
