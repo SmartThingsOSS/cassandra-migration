@@ -24,22 +24,27 @@ public class MigrationRunner {
 					break;
 			}
 
-			connection.connect();
-			connection.setKeyspace(migrationParameters.getKeyspace());
-			connection.setupMigration();
-			if (migrationParameters.getMigrationFile() != null) {
-				handler.handle(migrationParameters.getMigrationFile());
-			} else {
-				File migrationsDir = migrationParameters.getMigrationsDir();
-				if (migrationsDir != null) {
-					File[] files = migrationsDir.listFiles();
-					if (files != null) {
-						for (File file : files) {
-							handler.handle(file);
-						}
-					}
+			try {
+				connection.connect();
 
+				connection.setKeyspace(migrationParameters.getKeyspace());
+				connection.setupMigration();
+				if (migrationParameters.getMigrationFile() != null) {
+					handler.handle(migrationParameters.getMigrationFile());
+				} else {
+					File migrationsDir = migrationParameters.getMigrationsDir();
+					if (migrationsDir != null) {
+						File[] files = migrationsDir.listFiles();
+						if (files != null) {
+							for (File file : files) {
+								handler.handle(file);
+							}
+						}
+
+					}
 				}
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
 		}
 	}

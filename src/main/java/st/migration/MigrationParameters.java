@@ -14,6 +14,10 @@ public class MigrationParameters {
 	private String password;
 	private String username;
 	private int port = 9042;
+	private String truststorePath;
+	private String truststorePassword;
+	private String keystorePath;
+	private String keystorePassword;
 
 	public MigrationParameters() {
 		host = System.getProperty("host", "localhost");
@@ -138,6 +142,38 @@ public class MigrationParameters {
 		this.port = port;
 	}
 
+	public String getTruststorePath() {
+		return truststorePath;
+	}
+
+	public void setTruststorePath(String truststorePath) {
+		this.truststorePath = truststorePath;
+	}
+
+	public String getTruststorePassword() {
+		return truststorePassword;
+	}
+
+	public void setTruststorePassword(String truststorePassword) {
+		this.truststorePassword = truststorePassword;
+	}
+
+	public String getKeystorePath() {
+		return keystorePath;
+	}
+
+	public void setKeystorePath(String keystorePath) {
+		this.keystorePath = keystorePath;
+	}
+
+	public String getKeystorePassword() {
+		return keystorePassword;
+	}
+
+	public void setKeystorePassword(String keystorePassword) {
+		this.keystorePassword = keystorePassword;
+	}
+
 	public class Builder {
 		private File migrationFile;
 		private String host = "localhost";
@@ -146,6 +182,10 @@ public class MigrationParameters {
 		private String password;
 		private String username;
 		private int port = 9042;
+		private String truststorePath;
+		private String truststorePassword;
+		private String keystorePath;
+		private String keystorePassword;
 
 		public Builder() {}
 
@@ -184,11 +224,30 @@ public class MigrationParameters {
 			return this;
 		}
 
+		public Builder setTruststorePath(String truststorePath) {
+			this.truststorePath = truststorePath;
+			return this;
+		}
+
+		public Builder setTruststorePassword(String truststorePassword) {
+			this.truststorePassword = truststorePassword;
+			return this;
+		}
+
+		public Builder setKeystorePath(String keystorePath) {
+			this.keystorePath = keystorePath;
+			return this;
+		}
+
+		public Builder setKeystorePassword(String keystorePassword) {
+			this.keystorePassword = keystorePassword;
+			return this;
+		}
+
 		public MigrationParameters build() {
 
 			return new MigrationParameters(false, HandlerClass.MigrationHandler, migrationFile, host, keyspace, null, migrationsPath, password, username, port);
 		}
-
 	}
 
 	public enum HandlerClass {
