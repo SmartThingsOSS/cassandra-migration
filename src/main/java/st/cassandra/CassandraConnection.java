@@ -147,7 +147,7 @@ public class CassandraConnection implements AutoCloseable {
 		ResultSet result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) " + ifClause + ";", file.getName(), sha);
 
 		//We know by having IF NOT EXISTS there will always be a row returned with a column of applied
-		return ((boolean)(override ? true : result.all().get(0).getBool("applied")));
+		return ((boolean)(override ? true : result.one().getBool("[applied]")));
 	}
 
 	public boolean markMigration(File file, String sha) {
