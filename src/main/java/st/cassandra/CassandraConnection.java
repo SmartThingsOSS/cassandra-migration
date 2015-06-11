@@ -115,7 +115,7 @@ public class CassandraConnection implements AutoCloseable {
 			keyspace);
 
 		if (existingMigration.one() == null) {
-			logger.debug("migrations table not found creating.");
+			logger.info("migrations table not found creating.");
 			execute("CREATE TABLE IF NOT EXISTS migrations " +
 				"(name text, sha text, " +
 				"PRIMARY KEY (name));");
