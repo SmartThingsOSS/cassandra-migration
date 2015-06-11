@@ -1,10 +1,13 @@
 package st.migration;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import st.cassandra.CassandraConnection;
 
 import java.io.File;
 
 public class MigrationRunner {
+	private Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
 
 	public void run(MigrationParameters migrationParameters) {
 
@@ -40,11 +43,10 @@ public class MigrationRunner {
 								handler.handle(file);
 							}
 						}
-
 					}
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error("Failed while running migrations.", e);
 			}
 		}
 	}

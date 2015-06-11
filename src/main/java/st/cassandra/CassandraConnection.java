@@ -21,7 +21,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class CassandraConnection implements AutoCloseable {
+	private Logger logger = LoggerFactory.getLogger(CassandraConnection.class);
 
 	private static String[] cipherSuites = new String[2];
 	private String truststorePath;
@@ -47,14 +51,17 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public void connect() throws Exception {
+		logger.debug("Connecting to Cassandra at " + host + ":" + port);
 		Cluster.Builder builder = Cluster.builder().addContactPoint(host).withPort(port);
 
 		if (truststorePath != null && truststorePassword != null && keystorePath != null && keystorePassword != null) {
+			logger.debug("Using SSL for the connection");
 			SSLContext sslContext = getSSLContext(truststorePath, truststorePassword, keystorePath, keystorePassword);
 			builder.withSSL(new SSLOptions(sslContext, cipherSuites));
 		}
 
 		if (username != null && password != null) {
+			logger.debug("Using withCredentials for the connection");
 			builder.withCredentials(username, password);
 		}
 
@@ -101,12 +108,14 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public void setupMigration() {
+		logger.debug("Checking for migrations table.");
 		ResultSet existingMigration = execute("SELECT columnfamily_name " +
 				"FROM System.schema_columnfamilies	" +
 				"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
 			keyspace);
 
 		if (existingMigration.one() == null) {
+			logger.debug("migrations table not found creating.");
 			execute("CREATE TABLE IF NOT EXISTS migrations " +
 				"(name text, sha text, " +
 				"PRIMARY KEY (name));");
@@ -130,7 +139,7 @@ public class CassandraConnection implements AutoCloseable {
 				}
 			}
 		} else {
-			System.out.println("Not running " + String.valueOf(file) + " as another process has already marked it.");
+			logger.warn("Not running " + String.valueOf(file) + " as another process has already marked it.");
 		}
 
 	}
