@@ -48,6 +48,11 @@ public class CassandraConnection implements AutoCloseable {
 		this.port = parameters.getPort();
 		this.username = parameters.getUsername();
 		this.password = parameters.getPassword();
+		this.truststorePassword = parameters.getTruststorePassword();
+		this.truststorePath = parameters.getTruststorePath();
+		this.keystorePassword = parameters.getKeystorePassword();
+		this.keystorePath = parameters.getKeystorePath();
+
 	}
 
 	public void connect() throws Exception {
