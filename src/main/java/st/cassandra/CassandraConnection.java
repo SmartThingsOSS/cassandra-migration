@@ -129,13 +129,19 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public void runMigration(File file, String sha, boolean override) {
-		if (markMigration(file, sha, override)) {
+		try {
+			runMigration(file.getName(), Files.toString(file, Charsets.UTF_8), sha, override);
+		} catch (IOException e) {
+			logger.error("Failed to run migration", e);
+			e.printStackTrace();
+		}
+	}
+
+	public void runMigration(String fileName, String fileContents, String sha, boolean override) {
+		if (markMigration(fileName, sha, override)) {
 			List<String> statements = Collections.emptyList();
-			try {
-				statements = Arrays.asList(Files.toString(file, Charsets.UTF_8).split(";"));
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+
+			statements = Arrays.asList(fileContents.split(";"));
 
 			for (String statement : statements) {
 				String trimmedStatement = statement.trim();
@@ -144,28 +150,31 @@ public class CassandraConnection implements AutoCloseable {
 				}
 			}
 		} else {
-			logger.warn("Not running " + String.valueOf(file) + " as another process has already marked it.");
+			logger.warn("Not running " + fileName + " as another process has already marked it.");
 		}
-
 	}
 
 	public void runMigration(File file, String sha) {
 		runMigration(file, sha, false);
 	}
 
-	public boolean markMigration(File file, String sha, boolean override) {
+	public boolean markMigration(String fileName, String sha, boolean override) {
 
 		String ifClause = override ? "" : "IF NOT EXISTS";
 
 		//We use the light weight transaction to make sure another process hasn't started the work, but only if we aren't overriding
-		ResultSet result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) " + ifClause + ";", file.getName(), sha);
+		ResultSet result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) " + ifClause + ";", fileName, sha);
 
 		//We know by having IF NOT EXISTS there will always be a row returned with a column of applied
 		return ((boolean)(override ? true : result.one().getBool("[applied]")));
 	}
 
+	public boolean markMigration(String fileName, String sha) {
+		return markMigration(fileName, sha, false);
+	}
+
 	public boolean markMigration(File file, String sha) {
-		return markMigration(file, sha, false);
+		return markMigration(file.getName(), sha, false);
 	}
 
 	public String getMigrationMd5(String fileName) {

@@ -11,6 +11,7 @@ public class MigrationParameters {
 	private String keyspace = "test";
 	private String location;
 	private String migrationsPath = "../migrations";
+	private String migrationsLogFile;
 	private String password;
 	private String username;
 	private int port = 9042;
@@ -40,7 +41,7 @@ public class MigrationParameters {
 		override = new Boolean(System.getProperty("override"));
 	}
 
-	public MigrationParameters(Boolean override, HandlerClass handlerClass, File migrationFile, String host, String keyspace, String location, String migrationsPath, String password, String username, int port, String truststorePassword, String truststorePath, String keystorePassword, String keystorePath) {
+	public MigrationParameters(Boolean override, HandlerClass handlerClass, File migrationFile, String host, String keyspace, String location, String migrationsPath, String password, String username, int port, String truststorePassword, String truststorePath, String keystorePassword, String keystorePath, String migrationsLogFile) {
 		this.override = override;
 		this.handlerClass = handlerClass;
 		this.migrationFile = migrationFile;
@@ -55,6 +56,7 @@ public class MigrationParameters {
 		this.keystorePath = keystorePath;
 		this.truststorePassword = truststorePassword;
 		this.truststorePath = truststorePath;
+		this.migrationsLogFile = migrationsLogFile;
 	}
 
 	public String toString() {
@@ -178,11 +180,21 @@ public class MigrationParameters {
 		this.keystorePassword = keystorePassword;
 	}
 
+	public String getMigrationsLogFile() {
+		return migrationsLogFile;
+	}
+
+	public void setMigrationsLogFile(String migrationsLogFile) {
+		this.migrationsLogFile = migrationsLogFile;
+	}
+
 	public class Builder {
 		private File migrationFile;
 		private String host = "localhost";
 		private String keyspace = "test";
 		private String migrationsPath = "../migrations";
+
+		private String migrationsLogFile;
 		private String password;
 		private String username;
 		private int port = 9042;
@@ -248,9 +260,14 @@ public class MigrationParameters {
 			return this;
 		}
 
+		public Builder setMigrationsLogFile(String migrationsLogFile) {
+			this.migrationsLogFile = migrationsLogFile;
+			return this;
+		}
+
 		public MigrationParameters build() {
 
-			return new MigrationParameters(false, HandlerClass.MigrationHandler, migrationFile, host, keyspace, null, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath);
+			return new MigrationParameters(false, HandlerClass.MigrationHandler, migrationFile, host, keyspace, null, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath, migrationsLogFile);
 		}
 	}
 
