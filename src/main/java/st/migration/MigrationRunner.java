@@ -36,6 +36,8 @@ public class MigrationRunner {
 					handler.handle(migrationParameters.getMigrationFile());
 				} else {
 					File migrationsDir = migrationParameters.getMigrationsDir();
+
+					logger.info("Using migrations Directory "+ migrationsDir);
 					if (migrationsDir != null) {
 						File[] files = migrationsDir.listFiles();
 						if (files != null) {
