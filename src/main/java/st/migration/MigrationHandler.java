@@ -21,19 +21,21 @@ public class MigrationHandler implements Handler {
 		this.override = override;
 	}
 
-	public void handle(final File file) {
+	@Override
+	public void handle(final String fileName, final String fileContents) {
+		logger.info("Handling file: " + fileName);
 		String md5 = null;
 
-		md5 = Util.calculateMd5(file);
+		md5 = Util.calculateMd5(fileContents);
 
-		String existingMd5 = connection.getMigrationMd5(file.getName());
+		String existingMd5 = connection.getMigrationMd5(fileName);
 		if (existingMd5 != null && md5 != null && md5.equals(existingMd5)) {
-			logger.info(file.getName() + " was already run.");
+			logger.info(fileName + " was already run.");
 		} else if (existingMd5 != null && !override) {
-			throw new RuntimeException("ERROR! md5 of " + file.getName() + " is different from the last time it was run!");
+			throw new RuntimeException("ERROR! md5 of " + fileName + " is different from the last time it was run!");
 		} else {
-			logger.info("Running migration " + file.getName());
-			connection.runMigration(file, md5, override);
+			logger.info("Running migration " + fileName);
+			connection.runMigration(fileName, fileContents, md5, override);
 		}
 
 	}

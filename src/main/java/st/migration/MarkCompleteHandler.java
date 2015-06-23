@@ -11,12 +11,12 @@ public class MarkCompleteHandler implements Handler {
 	}
 
 	@Override
-	public void handle(final File file) {
-		String md5 = Util.calculateMd5(file);
-		String existingMd5 = connection.getMigrationMd5(file.getName());
+	public void handle(final String fileName, final String fileContents) {
+		String md5 = Util.calculateMd5(fileContents);
+		String existingMd5 = connection.getMigrationMd5(fileName);
 		if (existingMd5 == null) {
-			System.out.println("Marking migration " + file.getName() + " as run!");
-			connection.markMigration(file, md5);
+			System.out.println("Marking migration " + fileName + " as run!");
+			connection.markMigration(fileName, md5);
 		}
 
 	}

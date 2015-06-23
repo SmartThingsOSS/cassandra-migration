@@ -1,10 +1,16 @@
 package st.migration;
 
+import com.google.common.base.Charsets;
+import com.google.common.io.CharStreams;
+import com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.cassandra.CassandraConnection;
 
 import java.io.File;
+import java.io.InputStreamReader;
+import java.util.Arrays;
+import java.util.List;
 
 public class MigrationRunner {
 	private Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
@@ -32,18 +38,31 @@ public class MigrationRunner {
 
 				connection.setKeyspace(migrationParameters.getKeyspace());
 				connection.setupMigration();
-				if (migrationParameters.getMigrationFile() != null) {
-					handler.handle(migrationParameters.getMigrationFile());
+				if (migrationParameters.getMigrationsLogFile() != null) {
+
+					logger.info("Using Migration Log File: " + migrationParameters.getMigrationsLogFile());
+
+					String migrationLog = CharStreams.toString(new InputStreamReader(this.getClass().getResourceAsStream(migrationParameters.getMigrationsLogFile())));
+					List<String> files = Arrays.asList(migrationLog.split("\n"));
+
+					for (String file : files) {
+						String migrationFile = CharStreams.toString(new InputStreamReader(this.getClass().getResourceAsStream(file)));
+						handler.handle(file, migrationFile);
+					}
+				} else if (migrationParameters.getMigrationFile() != null) {
+					File f = migrationParameters.getMigrationFile();
+					handler.handle(f.getName(), Files.toString(f, Charsets.UTF_8));
 				} else {
 					File migrationsDir = migrationParameters.getMigrationsDir();
-
-					logger.info("Using migrations Directory "+ migrationsDir);
+					logger.info("Using migrations Directory " + migrationsDir);
 					if (migrationsDir != null) {
 						File[] files = migrationsDir.listFiles();
 						if (files != null) {
 							for (File file : files) {
-								handler.handle(file);
+								handler.handle(file.getName(), Files.toString(file, Charsets.UTF_8));
 							}
+						} else {
+							logger.warn("No files found in migrations directory.");
 						}
 					}
 				}

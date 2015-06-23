@@ -12,20 +12,21 @@ public class ExecuteExternallyHandler implements Handler {
 		this.parameters = parameters;
 	}
 
-	public void handle(final File file) {
-		String md5 = Util.calculateMd5(file);
+	@Override
+	public void handle(final String fileName, final String fileContents) {
+		String md5 = Util.calculateMd5(fileContents);
 
-		String existingMd5 = connection.getMigrationMd5(file.getName());
+		String existingMd5 = connection.getMigrationMd5(fileName);
 		if (existingMd5 != null && md5 != null && md5.equals(existingMd5)) {
-			System.out.println(file.getName() + " was already run");
+			System.out.println(fileName + " was already run");
 		} else if (existingMd5 != null && !parameters.getOverride()) {
-			throw new RuntimeException("ERROR! md5 of " + file.getName() + " is different from the last time it was run!");
+			throw new RuntimeException("ERROR! md5 of " + fileName + " is different from the last time it was run!");
 		} else {
-			System.out.println("Running migration " + file.getName());
+			System.out.println("Running migration " + fileName);
 
-			connection.markMigration(file, md5);
+			connection.markMigration(fileName, md5);
 
-			String command = parameters.getLocation() + " -f " + file.getAbsolutePath() + " -k " + parameters.getKeyspace() + " -h " + parameters.getHost();
+			String command = parameters.getLocation() + " -k " + parameters.getKeyspace() + " -h " + parameters.getHost() + " -x \"" + fileContents + "\"";
 			System.out.println(command);
 			try {
 				Runtime.getRuntime().exec(command);
