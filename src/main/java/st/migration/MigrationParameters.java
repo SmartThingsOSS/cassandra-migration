@@ -188,7 +188,7 @@ public class MigrationParameters {
 		this.migrationsLogFile = migrationsLogFile;
 	}
 
-	public class Builder {
+	public static class Builder {
 		private File migrationFile;
 		private String host = "localhost";
 		private String keyspace = "test";
