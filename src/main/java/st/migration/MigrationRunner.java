@@ -46,8 +46,10 @@ public class MigrationRunner {
 					List<String> files = Arrays.asList(migrationLog.split("\n"));
 
 					for (String file : files) {
-						String migrationFile = CharStreams.toString(new InputStreamReader(this.getClass().getResourceAsStream(file)));
-						handler.handle(file, migrationFile);
+						if (!file.equalsIgnoreCase("")) {
+							String migrationFile = CharStreams.toString(new InputStreamReader(this.getClass().getResourceAsStream(file)));
+							handler.handle(file, migrationFile);
+						}
 					}
 				} else if (migrationParameters.getMigrationFile() != null) {
 					File f = migrationParameters.getMigrationFile();
