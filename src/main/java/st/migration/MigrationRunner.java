@@ -68,8 +68,11 @@ public class MigrationRunner {
 						}
 					}
 				}
+			} catch (CassandraMigrationException e) {
+				throw e;
 			} catch (Exception e) {
 				logger.error("Failed while running migrations.", e);
+				throw new CassandraMigrationException("Failed while running migrations.", e);
 			}
 		}
 	}
