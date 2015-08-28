@@ -6,8 +6,10 @@ import com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.cassandra.CassandraConnection;
+import st.migration.CassandraMigrationException;
 
 import java.io.File;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
@@ -47,8 +49,13 @@ public class MigrationRunner {
 
 					for (String file : files) {
 						if (!file.equalsIgnoreCase("")) {
-							String migrationFile = CharStreams.toString(new InputStreamReader(this.getClass().getResourceAsStream(file)));
-							handler.handle(file, migrationFile);
+							InputStream stream = this.getClass().getResourceAsStream(file);
+							if (stream != null) {
+								String migrationFile = CharStreams.toString(new InputStreamReader(stream));
+								handler.handle(file, migrationFile);
+							} else {
+								throw new CassandraMigrationException("File " + file + " was not found.");
+							}
 						}
 					}
 				} else if (migrationParameters.getMigrationFile() != null) {
