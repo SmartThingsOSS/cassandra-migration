@@ -20,7 +20,7 @@ public class ExecuteExternallyHandler implements Handler {
 		if (existingMd5 != null && md5 != null && md5.equals(existingMd5)) {
 			System.out.println(fileName + " was already run");
 		} else if (existingMd5 != null && !parameters.getOverride()) {
-			throw new RuntimeException("ERROR! md5 of " + fileName + " is different from the last time it was run!");
+			throw new CassandraMigrationException("ERROR! md5 of " + fileName + " is different from the last time it was run!");
 		} else {
 			System.out.println("Running migration " + fileName);
 

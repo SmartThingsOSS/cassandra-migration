@@ -32,7 +32,7 @@ public class MigrationHandler implements Handler {
 		if (existingMd5 != null && md5 != null && md5.equals(existingMd5)) {
 			logger.info(fileName + " was already run.");
 		} else if (existingMd5 != null && !override) {
-			throw new RuntimeException("ERROR! md5 of " + fileName + " is different from the last time it was run!");
+			throw new CassandraMigrationException("ERROR! md5 of " + fileName + " is different from the last time it was run!");
 		} else {
 			logger.info("Running migration " + fileName);
 			connection.runMigration(fileName, fileContents, md5, override);
