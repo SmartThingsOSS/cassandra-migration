@@ -110,24 +110,45 @@ public class CassandraConnection implements AutoCloseable {
 		return session.execute(query);
 	}
 
+	public void truncateMigrations() {
+		if (migrationsTableExists()) {
+			ResultSet result = execute("SELECT * FROM migrations");
+			List<Row> results = result.all();
+			for (Row row : results) {
+				String sha = row.getString("sha");
+				String name = row.getString("name");
+
+				if (name.contains("/")) {
+					String truncatedName = name.substring(name.lastIndexOf("/")+1);
+					execute("INSERT INTO migrations (name, sha) VALUES (?, ?) IF NOT EXISTS", truncatedName, sha);
+				}
+
+			}
+		}
+	}
+
 	public ResultSet execute(String query, Object... params) {
 		return session.execute(query, params);
 	}
 
 	public void setupMigration() {
-		logger.debug("Checking for migrations table.");
-		ResultSet existingMigration = execute("SELECT columnfamily_name " +
-						"FROM System.schema_columnfamilies	" +
-						"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
-				keyspace);
 
-		if (existingMigration.one() == null) {
+		if (!migrationsTableExists()) {
 			logger.info("migrations table not found creating.");
 			execute("CREATE TABLE IF NOT EXISTS migrations " +
 					"(name text, sha text, " +
 					"PRIMARY KEY (name));");
 		}
 
+	}
+
+	public boolean migrationsTableExists() {
+		logger.debug("Checking for migrations table.");
+		ResultSet existingMigration = execute("SELECT columnfamily_name " +
+						"FROM System.schema_columnfamilies	" +
+						"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
+				keyspace);
+		return (existingMigration.one() != null);
 	}
 
 	public void runMigration(File file, String sha, boolean override) {
@@ -164,9 +185,7 @@ public class CassandraConnection implements AutoCloseable {
 				}
 
 				logger.error("removing mark for migration " + fileName );
-				BoundStatement statement = session.prepare("DELETE FROM migrations WHERE name = ?")
-						.bind(fileName);
-				session.execute(statement);
+				removeMigration(fileName);
 				throw e;
 			}
 
@@ -179,12 +198,19 @@ public class CassandraConnection implements AutoCloseable {
 		runMigration(file, sha, false);
 	}
 
+	public void removeMigration(String fileName) {
+		File file = new File(fileName);
+		execute("DELETE FROM migrations WHERE name = ?", file.getName());
+	}
+
 	public boolean markMigration(String fileName, String sha, boolean override) {
+
+		File file = new File(fileName);
 
 		String ifClause = override ? "" : "IF NOT EXISTS";
 
 		//We use the light weight transaction to make sure another process hasn't started the work, but only if we aren't overriding
-		ResultSet result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) " + ifClause + ";", fileName, sha);
+		ResultSet result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) " + ifClause + ";", file.getName(), sha);
 
 		//We know by having IF NOT EXISTS there will always be a row returned with a column of applied
 		return ((boolean) (override ? true : result.one().getBool("[applied]")));

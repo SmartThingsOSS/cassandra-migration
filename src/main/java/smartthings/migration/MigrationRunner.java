@@ -16,6 +16,18 @@ import java.util.List;
 public class MigrationRunner {
 	private Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
 
+	public void truncateMigrations(MigrationParameters migrationParameters) {
+		try (CassandraConnection connection = new CassandraConnection(migrationParameters)) {
+			connection.connect();
+			connection.truncateMigrations();
+		} catch (CassandraMigrationException e) {
+			throw e;
+		} catch (Exception e) {
+			logger.error("Failed while truncating migrations.", e);
+			throw new CassandraMigrationException("Failed while truncating migrations.", e);
+		}
+	}
+
 	public void run(MigrationParameters migrationParameters) {
 
 		try (CassandraConnection connection = new CassandraConnection(migrationParameters)) {
