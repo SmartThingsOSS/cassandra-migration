@@ -59,7 +59,7 @@ public class CassandraConnection implements AutoCloseable {
 		logger.debug("Connecting to Cassandra at " + host + ":" + port);
 		Cluster.Builder builder = Cluster.builder().addContactPoint(host).withPort(port);
 
-		if (truststorePath != null && truststorePassword != null && keystorePath != null && keystorePassword != null) {
+		if (all(truststorePath, truststorePassword, keystorePath, keystorePassword)) {
 			logger.debug("Using SSL for the connection");
 			SSLContext sslContext = getSSLContext(truststorePath, truststorePassword, keystorePath, keystorePassword);
 			builder.withSSL(new SSLOptions(sslContext, cipherSuites));
@@ -72,6 +72,15 @@ public class CassandraConnection implements AutoCloseable {
 
 		cluster = builder.build();
 		session = cluster.connect();
+	}
+
+	private boolean all(String... strings) {
+		for (String string : strings) {
+			if (string == null || string.trim() == "") {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	@Override
