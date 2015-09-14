@@ -17,6 +17,7 @@ version = file('version.txt').text.trim()
 apply plugin: 'java'
 apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: "maven-publish"
+apply plugin: "idea"
 
 sourceCompatibility = "1.7"
 targetCompatibility = "1.7"
