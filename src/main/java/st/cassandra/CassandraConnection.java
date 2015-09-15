@@ -1,5 +1,6 @@
 package st.cassandra;
 
+import static st.util.Util.all;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.SSLOptions;
@@ -23,6 +24,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 public class CassandraConnection implements AutoCloseable {
 	private Logger logger = LoggerFactory.getLogger(CassandraConnection.class);
@@ -72,15 +74,6 @@ public class CassandraConnection implements AutoCloseable {
 
 		cluster = builder.build();
 		session = cluster.connect();
-	}
-
-	private boolean all(String... strings) {
-		for (String string : strings) {
-			if (string == null || string.trim() == "") {
-				return false;
-			}
-		}
-		return true;
 	}
 
 	@Override

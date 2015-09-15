@@ -17,7 +17,8 @@ version = file('version.txt').text.trim()
 apply plugin: 'java'
 apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: "maven-publish"
-apply plugin: "idea"
+apply plugin: 'idea'
+apply plugin: 'groovy'
 
 sourceCompatibility = "1.7"
 targetCompatibility = "1.7"
@@ -29,6 +30,9 @@ repositories {
 dependencies {
 	compile 'com.datastax.cassandra:cassandra-driver-core:2.1.6'
 	compile 'com.google.guava:guava:18.0'
+
+	testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
+	testCompile 'org.codehaus.groovy:groovy-all:2.4.4'
 }
 
 task run(dependsOn: 'classes', type: JavaExec) {

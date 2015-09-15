@@ -22,4 +22,13 @@ public class Util {
 	public static String calculateMd5(String text) {
 		return Hashing.md5().newHasher().putString(text, Charsets.UTF_8).hash().toString();
 	}
+
+	public static boolean all(String... strings) {
+		for (String string : strings) {
+			if (string == null || string.trim() == "") {
+				return false;
+			}
+		}
+		return true;
+	}
 }
