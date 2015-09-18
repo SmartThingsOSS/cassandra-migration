@@ -1,5 +1,7 @@
 package st.migration;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import st.cassandra.CassandraConnection;
 import st.util.Util;
 
@@ -7,6 +9,8 @@ import java.io.File;
 import java.io.IOException;
 
 public class ExecuteExternallyHandler implements Handler {
+	private Logger logger = LoggerFactory.getLogger(ExecuteExternallyHandler.class);
+
 	public ExecuteExternallyHandler(CassandraConnection cassandraConnection, MigrationParameters parameters) {
 		this.connection = cassandraConnection;
 		this.parameters = parameters;
@@ -18,23 +22,25 @@ public class ExecuteExternallyHandler implements Handler {
 
 		String existingMd5 = connection.getMigrationMd5(fileName);
 		if (existingMd5 != null && md5 != null && md5.equals(existingMd5)) {
-			System.out.println(fileName + " was already run");
+			logger.info(fileName + " was already run");
 		} else if (existingMd5 != null && !parameters.getOverride()) {
 			throw new CassandraMigrationException("ERROR! md5 of " + fileName + " is different from the last time it was run!");
 		} else {
-			System.out.println("Running migration " + fileName);
-
-			connection.markMigration(fileName, md5);
+			logger.info("Running migration " + fileName);
 
 			String command = parameters.getLocation() + " -k " + parameters.getKeyspace() + " -h " + parameters.getHost() + " -x \"" + fileContents + "\"";
 			System.out.println(command);
 			try {
-				Runtime.getRuntime().exec(command);
-			} catch (IOException e) {
-				e.printStackTrace();
+				Process process = Runtime.getRuntime().exec(command);
+				process.waitFor();
+				if (process.exitValue() == 0) {
+					connection.markMigration(fileName, md5);
+				}
+
+			} catch (IOException | InterruptedException e ) {
+				logger.error("failed executing command: " + command, e);
 			}
 		}
-
 	}
 
 	public CassandraConnection getConnection() {

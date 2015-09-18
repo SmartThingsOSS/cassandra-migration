@@ -2,6 +2,8 @@ machine:
   java:
     version:
       oraclejdk7
+  environment:
+    JAVA_OPTS: -Xmx1G
 
 dependencies:
   override:

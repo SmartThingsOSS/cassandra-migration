@@ -1,11 +1,15 @@
 package st.migration;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import st.cassandra.CassandraConnection;
 import st.util.Util;
 
 import java.io.File;
 
 public class MarkCompleteHandler implements Handler {
+	private Logger logger = LoggerFactory.getLogger(MarkCompleteHandler.class);
+
 	public MarkCompleteHandler(CassandraConnection connection) {
 		this.connection = connection;
 	}
@@ -15,7 +19,7 @@ public class MarkCompleteHandler implements Handler {
 		String md5 = Util.calculateMd5(fileContents);
 		String existingMd5 = connection.getMigrationMd5(fileName);
 		if (existingMd5 == null) {
-			System.out.println("Marking migration " + fileName + " as run!");
+			logger.info("Marking migration " + fileName + " as run!");
 			connection.markMigration(fileName, md5);
 		}
 
