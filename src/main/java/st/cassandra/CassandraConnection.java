@@ -1,13 +1,10 @@
 package st.cassandra;
 
-import static st.util.Util.all;
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.SSLOptions;
-import com.datastax.driver.core.Session;
-
+import com.datastax.driver.core.*;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import st.migration.MigrationParameters;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -18,12 +15,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static st.util.Util.all;
 
 
 public class CassandraConnection implements AutoCloseable {
@@ -54,6 +51,7 @@ public class CassandraConnection implements AutoCloseable {
 		this.truststorePath = parameters.getTruststorePath();
 		this.keystorePassword = parameters.getKeystorePassword();
 		this.keystorePath = parameters.getKeystorePath();
+		this.keyspace = parameters.getKeyspace();
 
 	}
 
@@ -74,6 +72,9 @@ public class CassandraConnection implements AutoCloseable {
 
 		cluster = builder.build();
 		session = cluster.connect();
+		if (keyspace != null) {
+			setKeyspace(keyspace);
+		}
 	}
 
 	@Override
@@ -117,15 +118,15 @@ public class CassandraConnection implements AutoCloseable {
 	public void setupMigration() {
 		logger.debug("Checking for migrations table.");
 		ResultSet existingMigration = execute("SELECT columnfamily_name " +
-				"FROM System.schema_columnfamilies	" +
-				"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
-			keyspace);
+						"FROM System.schema_columnfamilies	" +
+						"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
+				keyspace);
 
 		if (existingMigration.one() == null) {
 			logger.info("migrations table not found creating.");
 			execute("CREATE TABLE IF NOT EXISTS migrations " +
-				"(name text, sha text, " +
-				"PRIMARY KEY (name));");
+					"(name text, sha text, " +
+					"PRIMARY KEY (name));");
 		}
 
 	}
@@ -141,16 +142,35 @@ public class CassandraConnection implements AutoCloseable {
 
 	public void runMigration(String fileName, String fileContents, String sha, boolean override) {
 		if (markMigration(fileName, sha, override)) {
-			List<String> statements = Collections.emptyList();
+			logger.info("Running migration " + fileName + " with sha " + sha);
+			List<String> statements = Arrays.asList(fileContents.split(";"));
+			List<String> runStatements = new ArrayList<>();
 
-			statements = Arrays.asList(fileContents.split(";"));
-
-			for (String statement : statements) {
-				String trimmedStatement = statement.trim();
-				if (!trimmedStatement.equals("")) {
-					execute(trimmedStatement + ";");
+			try {
+				for (String statement : statements) {
+					String trimmedStatement = statement.trim();
+					if (!trimmedStatement.equals("")) {
+						execute(trimmedStatement + ";");
+						runStatements.add(trimmedStatement);
+					}
 				}
+			} catch (Exception e) {
+
+				if (!runStatements.isEmpty()) {
+					String msg = "Statements run prior to failure:\n";
+					for (String statement : runStatements) {
+						msg += statement + ";\n";
+					}
+					logger.error(msg);
+				}
+
+				logger.error("removing mark for migration " + fileName );
+				BoundStatement statement = session.prepare("DELETE FROM migrations WHERE name = ?")
+						.bind(fileName);
+				session.execute(statement);
+				throw e;
 			}
+
 		} else {
 			logger.warn("Not running " + fileName + " as another process has already marked it.");
 		}
@@ -168,7 +188,7 @@ public class CassandraConnection implements AutoCloseable {
 		ResultSet result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) " + ifClause + ";", fileName, sha);
 
 		//We know by having IF NOT EXISTS there will always be a row returned with a column of applied
-		return ((boolean)(override ? true : result.one().getBool("[applied]")));
+		return ((boolean) (override ? true : result.one().getBool("[applied]")));
 	}
 
 	public boolean markMigration(String fileName, String sha) {

@@ -1,0 +1,2 @@
+/cassandra/migrations/change-1.cql
+/cassandra/migrations/fail-change.cql
