@@ -1,11 +1,9 @@
-package st.migration;
+package smartthings.migration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import st.cassandra.CassandraConnection;
-import st.util.Util;
-
-import java.io.File;
+import smartthings.cassandra.CassandraConnection;
+import smartthings.util.Util;
 
 public class MarkCompleteHandler implements Handler {
 	private Logger logger = LoggerFactory.getLogger(MarkCompleteHandler.class);

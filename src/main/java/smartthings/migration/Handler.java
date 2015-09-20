@@ -1,6 +1,4 @@
-package st.migration;
-
-import java.io.File;
+package smartthings.migration;
 
 public interface Handler {
 	public void handle(String fileName, String fileContents);

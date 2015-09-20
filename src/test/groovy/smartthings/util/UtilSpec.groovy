@@ -1,4 +1,4 @@
-package st.util
+package smartthings.util
 
 import spock.lang.Specification
 import spock.lang.Unroll

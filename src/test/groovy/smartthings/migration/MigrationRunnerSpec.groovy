@@ -1,11 +1,11 @@
-package st.migration
+package smartthings.migration
 
 import com.datastax.driver.core.ResultSet
 import org.cassandraunit.CassandraCQLUnit
 import org.cassandraunit.dataset.CQLDataSet
 import org.cassandraunit.dataset.cql.ClassPathCQLDataSet
 import spock.lang.Specification
-import st.cassandra.CassandraConnection
+import smartthings.cassandra.CassandraConnection
 
 class MigrationRunnerSpec extends Specification {
 

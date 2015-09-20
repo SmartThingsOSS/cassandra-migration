@@ -1,4 +1,4 @@
-package st.migration;
+package smartthings.migration;
 public class CassandraMigrationException extends RuntimeException {
 
 	public CassandraMigrationException(String message) {

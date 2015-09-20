@@ -1,12 +1,11 @@
-package st.migration;
+package smartthings.migration;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import st.cassandra.CassandraConnection;
-import st.migration.CassandraMigrationException;
+import smartthings.cassandra.CassandraConnection;
 
 import java.io.File;
 import java.io.InputStream;

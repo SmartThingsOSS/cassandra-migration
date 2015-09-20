@@ -4,6 +4,7 @@ machine:
       oraclejdk7
   environment:
     JAVA_OPTS: -Xmx1G
+    GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx1G -XX:+HeapDumpOnOutOfMemoryError"'
 
 dependencies:
   override:

@@ -1,11 +1,11 @@
-package st.cassandra;
+package smartthings.cassandra;
 
 import com.datastax.driver.core.*;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import st.migration.MigrationParameters;
+import smartthings.migration.MigrationParameters;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -17,10 +17,9 @@ import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
-import static st.util.Util.all;
+import static smartthings.util.Util.all;
 
 
 public class CassandraConnection implements AutoCloseable {

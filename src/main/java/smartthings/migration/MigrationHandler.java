@@ -1,13 +1,9 @@
-package st.migration;
+package smartthings.migration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import st.util.Util;
-import st.cassandra.CassandraConnection;
-
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import smartthings.util.Util;
+import smartthings.cassandra.CassandraConnection;
 
 public class MigrationHandler implements Handler {
 
