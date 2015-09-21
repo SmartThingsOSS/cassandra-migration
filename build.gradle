@@ -1,8 +1,6 @@
 buildscript {
 	repositories {
 		jcenter()
-		mavenCentral()
-		mavenLocal()
 	}
 
 	dependencies {
@@ -21,6 +19,10 @@ apply plugin: 'idea'
 
 sourceCompatibility = "1.7"
 targetCompatibility = "1.7"
+
+task wrapper(type: Wrapper) {
+	gradleVersion = "2.7"
+}
 
 repositories {
 	mavenCentral()

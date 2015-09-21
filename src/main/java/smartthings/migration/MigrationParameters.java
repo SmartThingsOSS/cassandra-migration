@@ -1,4 +1,4 @@
-package st.migration;
+package smartthings.migration;
 
 import java.io.File;
 

@@ -1,4 +1,4 @@
-package st.migration;
+package smartthings.migration;
 
 public class MigrationExecutor {
 	public static void main(String[] args) {

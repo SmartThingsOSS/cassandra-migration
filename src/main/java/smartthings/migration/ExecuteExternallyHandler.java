@@ -1,11 +1,10 @@
-package st.migration;
+package smartthings.migration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import st.cassandra.CassandraConnection;
-import st.util.Util;
+import smartthings.cassandra.CassandraConnection;
+import smartthings.util.Util;
 
-import java.io.File;
 import java.io.IOException;
 
 public class ExecuteExternallyHandler implements Handler {
