@@ -16,10 +16,10 @@ import java.util.List;
 public class MigrationRunner {
 	private Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
 
-	public void truncateMigrations(MigrationParameters migrationParameters) {
+	public void backfillMigrations(MigrationParameters migrationParameters) {
 		try (CassandraConnection connection = new CassandraConnection(migrationParameters)) {
 			connection.connect();
-			connection.truncateMigrations();
+			connection.backfillMigrations();
 		} catch (CassandraMigrationException e) {
 			throw e;
 		} catch (Exception e) {
@@ -48,7 +48,7 @@ public class MigrationRunner {
 
 			try {
 				connection.connect();
-
+				connection.backfillMigrations(); //Cleans up old style migrations with full file path
 				connection.setKeyspace(migrationParameters.getKeyspace());
 				connection.setupMigration();
 				if (migrationParameters.getMigrationsLogFile() != null) {

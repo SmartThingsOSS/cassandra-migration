@@ -110,7 +110,7 @@ public class CassandraConnection implements AutoCloseable {
 		return session.execute(query);
 	}
 
-	public void truncateMigrations() {
+	public void backfillMigrations() {
 		if (migrationsTableExists()) {
 			ResultSet result = execute("SELECT * FROM migrations");
 			List<Row> results = result.all();
