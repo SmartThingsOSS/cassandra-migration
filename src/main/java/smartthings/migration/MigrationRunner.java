@@ -16,6 +16,18 @@ import java.util.List;
 public class MigrationRunner {
 	private Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
 
+	public void backfillMigrations(MigrationParameters migrationParameters) {
+		try (CassandraConnection connection = new CassandraConnection(migrationParameters)) {
+			connection.connect();
+			connection.backfillMigrations();
+		} catch (CassandraMigrationException e) {
+			throw e;
+		} catch (Exception e) {
+			logger.error("Failed while truncating migrations.", e);
+			throw new CassandraMigrationException("Failed while truncating migrations.", e);
+		}
+	}
+
 	public void run(MigrationParameters migrationParameters) {
 
 		try (CassandraConnection connection = new CassandraConnection(migrationParameters)) {
@@ -36,7 +48,7 @@ public class MigrationRunner {
 
 			try {
 				connection.connect();
-
+				connection.backfillMigrations(); //Cleans up old style migrations with full file path
 				connection.setKeyspace(migrationParameters.getKeyspace());
 				connection.setupMigration();
 				if (migrationParameters.getMigrationsLogFile() != null) {

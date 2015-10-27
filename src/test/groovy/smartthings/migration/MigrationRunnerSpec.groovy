@@ -45,7 +45,7 @@ class MigrationRunnerSpec extends Specification {
 
 		def migrations = processRows(connection.execute('SELECT * from migrations'))
 
-		migrations == [[name: '/cassandra/migrations/change-1.cql', sha: '834bd37fb41f231e3df36dcd2c51afda']]
+		migrations == [[name: 'change-1.cql', sha: '834bd37fb41f231e3df36dcd2c51afda']]
 
 		and: 'the migration data is present'
 
@@ -60,8 +60,8 @@ class MigrationRunnerSpec extends Specification {
 		def migrations2 = processRows(connection.execute('SELECT * from migrations'))
 
 		migrations2 == [
-				[name: '/cassandra/migrations/change-1.cql', sha: '834bd37fb41f231e3df36dcd2c51afda'],
-				[name: '/cassandra/migrations/change-2.cql', sha: 'd00f97fc30b437bf887a2d7eb557f2c5'],
+				[name: 'change-1.cql', sha: '834bd37fb41f231e3df36dcd2c51afda'],
+				[name: 'change-2.cql', sha: 'd00f97fc30b437bf887a2d7eb557f2c5'],
 		]
 
 		def data2 = processRows(connection.execute('SELECT * FROM a')).sort()
@@ -89,7 +89,7 @@ class MigrationRunnerSpec extends Specification {
 		and: 'the migrations table exists and has an entry from the successful migration only'
 		def migrations = processRows(connection.execute('SELECT * from migrations'))
 
-		migrations == [[name: '/cassandra/migrations/change-1.cql', sha: '834bd37fb41f231e3df36dcd2c51afda']]
+		migrations == [[name: 'change-1.cql', sha: '834bd37fb41f231e3df36dcd2c51afda']]
 
 		and: 'the migration data is present from the successful migration and the failed!'
 		//TODO: batch would allow rollback
