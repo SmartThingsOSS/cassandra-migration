@@ -3,8 +3,10 @@ machine:
     version:
       oraclejdk7
   environment:
-    JAVA_OPTS: -Xmx1G
+    JAVA_OPTS: -Djava.awt.headless=true -server -Xmx1G
     GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx1G -XX:+HeapDumpOnOutOfMemoryError"'
+    MAX_HEAP_SIZE: 512M
+    HEAP_NEWSIZE: 100M
 
 dependencies:
   override:
