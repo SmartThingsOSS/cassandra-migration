@@ -43,6 +43,7 @@ task run(dependsOn: 'classes', type: JavaExec) {
 	main = 'st.migration.MigrationExecutor'
 	systemProperties = [host: host, port: port, keyspace: keyspace, migrationPath: migrationsPath]
 	classpath = sourceSets.main.runtimeClasspath
+	maxHeapSize = '512m'
 }
 
 task markAll(dependsOn: 'classes', type: JavaExec) {
