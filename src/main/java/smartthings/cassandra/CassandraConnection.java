@@ -21,7 +21,6 @@ import java.util.List;
 
 import static smartthings.util.Util.all;
 
-
 public class CassandraConnection implements AutoCloseable {
 	private Logger logger = LoggerFactory.getLogger(CassandraConnection.class);
 
@@ -114,16 +113,22 @@ public class CassandraConnection implements AutoCloseable {
 		if (migrationsTableExists()) {
 			ResultSet result = execute("SELECT * FROM migrations");
 			List<Row> results = result.all();
+			int numMigrated = 0;
+			logger.info("Checking for migrations that need to be backfilled");
 			for (Row row : results) {
 				String sha = row.getString("sha");
 				String name = row.getString("name");
 
 				if (name.contains("/")) {
 					String truncatedName = name.substring(name.lastIndexOf("/")+1);
-					execute("INSERT INTO migrations (name, sha) VALUES (?, ?) IF NOT EXISTS", truncatedName, sha);
+					ResultSet rs = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) IF NOT EXISTS", truncatedName, sha);
+					if (rs.wasApplied()) {
+						numMigrated++;
+						logger.info("Backfilled migration. {} -> {}", name, truncatedName);
+					}
 				}
-
 			}
+			logger.info("{} migrations records backfilled", numMigrated);
 		}
 	}
 

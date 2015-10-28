@@ -2,8 +2,8 @@ package smartthings.migration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import smartthings.util.Util;
 import smartthings.cassandra.CassandraConnection;
+import smartthings.util.Util;
 
 public class MigrationHandler implements Handler {
 
@@ -20,12 +20,10 @@ public class MigrationHandler implements Handler {
 	@Override
 	public void handle(final String fileName, final String fileContents) {
 		logger.info("Handling file: " + fileName);
-		String md5 = null;
-
-		md5 = Util.calculateMd5(fileContents);
+		String md5 = Util.calculateMd5(fileContents);
 
 		String existingMd5 = connection.getMigrationMd5(fileName);
-		if (existingMd5 != null && md5 != null && md5.equals(existingMd5)) {
+		if (existingMd5 != null && md5.equals(existingMd5)) {
 			logger.info(fileName + " was already run.");
 		} else if (existingMd5 != null && !override) {
 			throw new CassandraMigrationException("ERROR! md5 of " + fileName + " is different from the last time it was run!");
