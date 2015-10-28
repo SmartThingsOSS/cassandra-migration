@@ -39,11 +39,14 @@ dependencies {
 	testRuntime 'ch.qos.logback:logback-classic:1.1.3'
 }
 
+test {
+	maxHeapSize = '512m'
+}
+
 task run(dependsOn: 'classes', type: JavaExec) {
 	main = 'st.migration.MigrationExecutor'
 	systemProperties = [host: host, port: port, keyspace: keyspace, migrationPath: migrationsPath]
 	classpath = sourceSets.main.runtimeClasspath
-	maxHeapSize = '512m'
 }
 
 task markAll(dependsOn: 'classes', type: JavaExec) {
