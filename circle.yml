@@ -10,6 +10,7 @@ machine:
 
 dependencies:
   override:
+    - sudo pip install codecov
     - ./gradlew classes testClasses
 
 test:

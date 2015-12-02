@@ -1,5 +1,8 @@
 Simple application for migrating cassandra databases
 
+[![Circle CI](https://circleci.com/gh/SmartThingsOSS/cassandra-migration/tree/master.svg?style=svg)](https://circleci.com/gh/SmartThingsOSS/cassandra-migration/tree/master)
+[![codecov.io](https://codecov.io/github/SmartThingsOSS/cassandra-migration/coverage.svg?branch=master)](https://codecov.io/github/SmartThingsOSS/cassandra-migration?branch=master)
+
 ### Installation
 Extract zipfile into a directory
 
