@@ -10,29 +10,17 @@ machine:
 
 dependencies:
   override:
-    # Prepare the build for release if necessary
-    - mkdir -p ~/build-common
-    - curl -L https://smartthings-provisioning.s3.amazonaws.com/build-common/build-common.tar.gz | tar xvz -C ~/build-common
-    - sudo pip install -r ~/build-common/requirements.txt
-    - ~/build-common/circle-ci/update_version.py --branch=release
-
-    # Load dependencies into the cache
-    - ./gradlew classes testClasses -PsmartThingsArtifactoryUserName=$ARTIFACTORY_USERNAME -PsmartThingsArtifactoryPassword=$ARTIFACTORY_PASSWORD
+    - ./gradlew classes testClasses
 
 test:
   override:
-    - ./gradlew check -PsmartThingsArtifactoryUserName=$ARTIFACTORY_USERNAME -PsmartThingsArtifactoryPassword=$ARTIFACTORY_PASSWORD
+    - ./gradlew check jacocoTestReport
   post:
-    - cp build/test-results/*.xml $CIRCLE_TEST_REPORTS/ || true
+    - 'find . -type f -name "*.xml" | grep "build/test-results" | xargs cp -t $CIRCLE_TEST_REPORTS/'
+    - bash <(curl -s https://codecov.io/bash)
 
 deployment:
   snapshot:
     branch: master
     commands:
       - ./gradlew publish -PsmartThingsArtifactoryUserName=$ARTIFACTORY_USERNAME -PsmartThingsArtifactoryPassword=$ARTIFACTORY_PASSWORD
-
-  release:
-    branch: release
-    commands:
-      - ./gradlew publish -PsmartThingsArtifactoryUserName=$ARTIFACTORY_USERNAME -PsmartThingsArtifactoryPassword=$ARTIFACTORY_PASSWORD
-      - ~/build-common/circle-ci/release.py --branch=release
