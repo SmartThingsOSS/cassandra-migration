@@ -16,6 +16,7 @@ apply plugin: 'groovy'
 apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: "maven-publish"
 apply plugin: 'idea'
+apply from: file('gradle/publishing.gradle')
 
 sourceCompatibility = "1.7"
 targetCompatibility = "1.7"
@@ -55,29 +56,3 @@ task markAll(dependsOn: 'classes', type: JavaExec) {
 	classpath = sourceSets.main.runtimeClasspath
 }
 
-task sourceJar(type: Jar) {
-		classifier "sources"
-		from sourceSets.main.allJava
-}
-
-publishing {
-	publications {
-		main(MavenPublication) {
-			from components.java
-			artifact sourceJar
-		}
-	}
-	repositories {
-		maven {
-			credentials {
-				username smartThingsArtifactoryUserName
-				password smartThingsArtifactoryPassword
-			}
-			if (version.endsWith('SNAPSHOT')) {
-				url "http://artifactory.smartthings.com/libs-snapshot-local"
-			} else {
-				url "http://artifactory.smartthings.com/libs-release-local"
-			}
-		}
-	}
-}
