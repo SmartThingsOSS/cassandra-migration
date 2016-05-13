@@ -62,7 +62,7 @@ public class MigrationRunner {
 						if (!file.equalsIgnoreCase("")) {
 							String cql;
 							try {
-								cql = loadResource(file).read();
+								cql = loadResource(migrationParameters.getMigrationsLogFile() + "/" + file).read();
 							} catch (IOException e) {
 								throw new CassandraMigrationException("Error loading cql file " + file, e);
 							}
