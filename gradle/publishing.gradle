@@ -9,14 +9,14 @@ task sourceJar(type: Jar) {
 }
 
 if (isSnapshot) {
-	if (project.hasProperty('smartThingsArtifactoryUserName')) {
-		publishing {
-			publications {
-				main(MavenPublication) {
-					from components.java
-					artifact sourceJar
-				}
+	publishing {
+		publications {
+			main(MavenPublication) {
+				from components.java
+				artifact sourceJar
 			}
+		}
+		if (project.hasProperty('smartThingsArtifactoryUserName')) {
 			repositories {
 				maven {
 					credentials {
