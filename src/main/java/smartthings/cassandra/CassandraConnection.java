@@ -250,14 +250,6 @@ public class CassandraConnection implements AutoCloseable {
 		return result.one().getString("sha");
 	}
 
-	public Cluster getCluster() {
-		return cluster;
-	}
-
-	public void setCluster(Cluster cluster) {
-		this.cluster = cluster;
-	}
-
 	public Session getSession() {
 		return session;
 	}
