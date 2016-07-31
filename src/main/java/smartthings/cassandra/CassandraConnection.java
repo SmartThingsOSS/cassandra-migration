@@ -37,6 +37,8 @@ public class CassandraConnection implements AutoCloseable {
 	private String username;
 	private String password;
 
+	private String cassandraVersion;
+
 	public CassandraConnection(MigrationParameters parameters) {
 		cipherSuites[0] = "TLS_RSA_WITH_AES_128_CBC_SHA";
 		cipherSuites[1] = "TLS_RSA_WITH_AES_256_CBC_SHA";
@@ -60,7 +62,7 @@ public class CassandraConnection implements AutoCloseable {
 		if (all(truststorePath, truststorePassword, keystorePath, keystorePassword)) {
 			logger.debug("Using SSL for the connection");
 			SSLContext sslContext = getSSLContext(truststorePath, truststorePassword, keystorePath, keystorePassword);
-			builder.withSSL(new SSLOptions(sslContext, cipherSuites));
+			builder.withSSL(JdkSSLOptions.builder().withSSLContext(sslContext).withCipherSuites(cipherSuites).build());
 		}
 
 		if (username != null && password != null) {
@@ -73,6 +75,8 @@ public class CassandraConnection implements AutoCloseable {
 		if (keyspace != null) {
 			setKeyspace(keyspace);
 		}
+		cassandraVersion = execute("select release_version from system.local where key = 'local'")
+				.one().getString(0);
 	}
 
 	@Override
@@ -149,11 +153,19 @@ public class CassandraConnection implements AutoCloseable {
 
 	public boolean migrationsTableExists() {
 		logger.debug("Checking for migrations table.");
-		ResultSet existingMigration = execute("SELECT columnfamily_name " +
-						"FROM System.schema_columnfamilies	" +
-						"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
-				keyspace);
-		return (existingMigration.one() != null);
+		if (cassandraVersion.startsWith("3.")) {
+			ResultSet existingMigration = execute("SELECT table_name " +
+							"FROM system_schema.tables	" +
+							"WHERE keyspace_name=? and table_name = 'migrations';",
+					keyspace);
+			return (existingMigration.one() != null);
+		} else {
+			ResultSet existingMigration = execute("SELECT columnfamily_name " +
+							"FROM System.schema_columnfamilies	" +
+							"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
+					keyspace);
+			return (existingMigration.one() != null);
+		}
 	}
 
 	public void runMigration(File file, String sha, boolean override) {

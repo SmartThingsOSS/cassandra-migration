@@ -1,7 +1,7 @@
 machine:
   java:
     version:
-      oraclejdk7
+      oraclejdk8
   environment:
     JAVA_OPTS: -Djava.awt.headless=true -server -Xmx1G
     GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx1G -XX:+HeapDumpOnOutOfMemoryError"'
