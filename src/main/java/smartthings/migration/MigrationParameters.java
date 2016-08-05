@@ -1,6 +1,9 @@
 package smartthings.migration;
 
+import com.datastax.driver.core.Session;
+
 import java.io.File;
+import java.util.Optional;
 
 public class MigrationParameters {
 
@@ -19,6 +22,8 @@ public class MigrationParameters {
 	private String truststorePassword;
 	private String keystorePath;
 	private String keystorePassword;
+
+	private Session session;
 
 	public MigrationParameters() {
 		host = System.getProperty("host", "localhost");
@@ -42,6 +47,10 @@ public class MigrationParameters {
 	}
 
 	public MigrationParameters(Boolean override, HandlerClass handlerClass, File migrationFile, String host, String keyspace, String location, String migrationsPath, String password, String username, int port, String truststorePassword, String truststorePath, String keystorePassword, String keystorePath, String migrationsLogFile) {
+		this(override, handlerClass, migrationFile, host, keyspace, location, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath, migrationsLogFile, null);
+	}
+
+	public MigrationParameters(Boolean override, HandlerClass handlerClass, File migrationFile, String host, String keyspace, String location, String migrationsPath, String password, String username, int port, String truststorePassword, String truststorePath, String keystorePassword, String keystorePath, String migrationsLogFile, Session session) {
 		this.override = override;
 		this.handlerClass = handlerClass;
 		this.migrationFile = migrationFile;
@@ -57,6 +66,16 @@ public class MigrationParameters {
 		this.truststorePassword = truststorePassword;
 		this.truststorePath = truststorePath;
 		this.migrationsLogFile = migrationsLogFile;
+		this.session = session;
+	}
+
+	public MigrationParameters(String migrationsLogFile, String keyspace, Session session) {
+		this.override = false;
+		this.migrationsLogFile = migrationsLogFile;
+		this.keyspace = keyspace;
+		this.session = session;
+		this.handlerClass = HandlerClass.MigrationHandler;
+
 	}
 
 	public String toString() {
@@ -188,6 +207,14 @@ public class MigrationParameters {
 		this.migrationsLogFile = migrationsLogFile;
 	}
 
+	public Session getSession() {
+		return session;
+	}
+
+	public void setSession(Session session) {
+		this.session = session;
+	}
+
 	public static class Builder {
 		private File migrationFile;
 		private String host = "localhost";
@@ -202,6 +229,8 @@ public class MigrationParameters {
 		private String truststorePassword;
 		private String keystorePath;
 		private String keystorePassword;
+
+		private Session session;
 
 		public Builder() {}
 
@@ -265,9 +294,18 @@ public class MigrationParameters {
 			return this;
 		}
 
+		public Builder setSession(Session session) {
+			this.session = session;
+			return this;
+		}
+
 		public MigrationParameters build() {
 
-			return new MigrationParameters(false, HandlerClass.MigrationHandler, migrationFile, host, keyspace, null, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath, migrationsLogFile);
+			if (session == null) {
+				return new MigrationParameters(false, HandlerClass.MigrationHandler, migrationFile, host, keyspace, null, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath, migrationsLogFile);
+			} else {
+				return new MigrationParameters(migrationsLogFile, keyspace, session);
+			}
 		}
 	}
 

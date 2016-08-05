@@ -43,45 +43,55 @@ public class CassandraConnection implements AutoCloseable {
 		cipherSuites[0] = "TLS_RSA_WITH_AES_128_CBC_SHA";
 		cipherSuites[1] = "TLS_RSA_WITH_AES_256_CBC_SHA";
 
-		this.host = parameters.getHost();
-		this.port = parameters.getPort();
-		this.username = parameters.getUsername();
-		this.password = parameters.getPassword();
-		this.truststorePassword = parameters.getTruststorePassword();
-		this.truststorePath = parameters.getTruststorePath();
-		this.keystorePassword = parameters.getKeystorePassword();
-		this.keystorePath = parameters.getKeystorePath();
+		session = parameters.getSession();
+		if (session == null) {
+			this.host = parameters.getHost();
+			this.port = parameters.getPort();
+			this.username = parameters.getUsername();
+			this.password = parameters.getPassword();
+			this.truststorePassword = parameters.getTruststorePassword();
+			this.truststorePath = parameters.getTruststorePath();
+			this.keystorePassword = parameters.getKeystorePassword();
+			this.keystorePath = parameters.getKeystorePath();
+		}
 		this.keyspace = parameters.getKeyspace();
 
 	}
 
 	public void connect() throws Exception {
-		logger.debug("Connecting to Cassandra at " + host + ":" + port);
-		Cluster.Builder builder = Cluster.builder().addContactPoint(host).withPort(port);
+		if (session == null) {
+			logger.debug("Connecting to Cassandra at " + host + ":" + port);
+			Cluster.Builder builder = Cluster.builder().addContactPoint(host).withPort(port);
 
-		if (all(truststorePath, truststorePassword, keystorePath, keystorePassword)) {
-			logger.debug("Using SSL for the connection");
-			SSLContext sslContext = getSSLContext(truststorePath, truststorePassword, keystorePath, keystorePassword);
-			builder.withSSL(JdkSSLOptions.builder().withSSLContext(sslContext).withCipherSuites(cipherSuites).build());
+			if (all(truststorePath, truststorePassword, keystorePath, keystorePassword)) {
+				logger.debug("Using SSL for the connection");
+				SSLContext sslContext = getSSLContext(truststorePath, truststorePassword, keystorePath, keystorePassword);
+				builder.withSSL(JdkSSLOptions.builder().withSSLContext(sslContext).withCipherSuites(cipherSuites).build());
+			}
+
+			if (username != null && password != null) {
+				logger.debug("Using withCredentials for the connection");
+				builder.withCredentials(username, password);
+			}
+
+			cluster = builder.build();
+			session = cluster.connect();
 		}
 
-		if (username != null && password != null) {
-			logger.debug("Using withCredentials for the connection");
-			builder.withCredentials(username, password);
-		}
-
-		cluster = builder.build();
-		session = cluster.connect();
 		if (keyspace != null) {
 			setKeyspace(keyspace);
 		}
+
 		cassandraVersion = execute("select release_version from system.local where key = 'local'")
-				.one().getString(0);
+			.one().getString(0);
 	}
 
 	@Override
 	public void close() {
-		cluster.close();
+		if (cluster != null) {
+			//We don't close the connection if we were given a session
+			cluster.close();
+		}
 	}
 
 	private static SSLContext getSSLContext(String truststorePath, String truststorePassword, String keystorePath, String keystorePassword) throws Exception {
@@ -124,7 +134,7 @@ public class CassandraConnection implements AutoCloseable {
 				String name = row.getString("name");
 
 				if (name.contains("/")) {
-					String truncatedName = name.substring(name.lastIndexOf("/")+1);
+					String truncatedName = name.substring(name.lastIndexOf("/") + 1);
 					ResultSet rs = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) IF NOT EXISTS", truncatedName, sha);
 					if (rs.wasApplied()) {
 						numMigrated++;
@@ -145,8 +155,8 @@ public class CassandraConnection implements AutoCloseable {
 		if (!migrationsTableExists()) {
 			logger.info("migrations table not found creating.");
 			execute("CREATE TABLE IF NOT EXISTS migrations " +
-					"(name text, sha text, " +
-					"PRIMARY KEY (name));");
+				"(name text, sha text, " +
+				"PRIMARY KEY (name));");
 		}
 
 	}
@@ -155,15 +165,15 @@ public class CassandraConnection implements AutoCloseable {
 		logger.debug("Checking for migrations table.");
 		if (cassandraVersion.startsWith("3.")) {
 			ResultSet existingMigration = execute("SELECT table_name " +
-							"FROM system_schema.tables	" +
-							"WHERE keyspace_name=? and table_name = 'migrations';",
-					keyspace);
+					"FROM system_schema.tables	" +
+					"WHERE keyspace_name=? and table_name = 'migrations';",
+				keyspace);
 			return (existingMigration.one() != null);
 		} else {
 			ResultSet existingMigration = execute("SELECT columnfamily_name " +
-							"FROM System.schema_columnfamilies	" +
-							"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
-					keyspace);
+					"FROM System.schema_columnfamilies	" +
+					"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
+				keyspace);
 			return (existingMigration.one() != null);
 		}
 	}
@@ -201,7 +211,7 @@ public class CassandraConnection implements AutoCloseable {
 					logger.error(msg);
 				}
 
-				logger.error("removing mark for migration " + fileName );
+				logger.error("removing mark for migration " + fileName);
 				removeMigration(fileName);
 				throw e;
 			}
@@ -230,7 +240,7 @@ public class CassandraConnection implements AutoCloseable {
 		ResultSet result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) " + ifClause + ";", file.getName(), sha);
 
 		//We know by having IF NOT EXISTS there will always be a row returned with a column of applied
-		return ((boolean) (override ? true : result.one().getBool("[applied]")));
+		return ((boolean)(override ? true : result.one().getBool("[applied]")));
 	}
 
 	public boolean markMigration(String fileName, String sha) {
@@ -248,14 +258,6 @@ public class CassandraConnection implements AutoCloseable {
 		}
 
 		return result.one().getString("sha");
-	}
-
-	public Cluster getCluster() {
-		return cluster;
-	}
-
-	public void setCluster(Cluster cluster) {
-		this.cluster = cluster;
 	}
 
 	public Session getSession() {
