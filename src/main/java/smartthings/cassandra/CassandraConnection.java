@@ -5,6 +5,7 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import smartthings.migration.CassandraMigrationException;
 import smartthings.migration.MigrationParameters;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -83,7 +84,7 @@ public class CassandraConnection implements AutoCloseable {
 		}
 
 		cassandraVersion = execute("select release_version from system.local where key = 'local'")
-			.one().getString(0);
+				.one().getString(0);
 	}
 
 	@Override
@@ -155,8 +156,8 @@ public class CassandraConnection implements AutoCloseable {
 		if (!migrationsTableExists()) {
 			logger.info("migrations table not found creating.");
 			execute("CREATE TABLE IF NOT EXISTS migrations " +
-				"(name text, sha text, " +
-				"PRIMARY KEY (name));");
+					"(name text, sha text, " +
+					"PRIMARY KEY (name));");
 		}
 
 	}
@@ -165,15 +166,15 @@ public class CassandraConnection implements AutoCloseable {
 		logger.debug("Checking for migrations table.");
 		if (cassandraVersion.startsWith("3.")) {
 			ResultSet existingMigration = execute("SELECT table_name " +
-					"FROM system_schema.tables	" +
-					"WHERE keyspace_name=? and table_name = 'migrations';",
-				keyspace);
+							"FROM system_schema.tables	" +
+							"WHERE keyspace_name=? and table_name = 'migrations';",
+					keyspace);
 			return (existingMigration.one() != null);
 		} else {
 			ResultSet existingMigration = execute("SELECT columnfamily_name " +
-					"FROM System.schema_columnfamilies	" +
-					"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
-				keyspace);
+							"FROM System.schema_columnfamilies	" +
+							"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
+					keyspace);
 			return (existingMigration.one() != null);
 		}
 	}
@@ -197,7 +198,11 @@ public class CassandraConnection implements AutoCloseable {
 				for (String statement : statements) {
 					String trimmedStatement = statement.trim();
 					if (!trimmedStatement.equals("")) {
-						execute(trimmedStatement + ";");
+						ResultSet resultSet = execute(trimmedStatement + ";");
+						if (!resultSet.getExecutionInfo().isSchemaInAgreement()) {
+							logger.error("Schema is not in agreement");
+							throw new CassandraMigrationException("Schema is not in agreement.");
+						}
 						runStatements.add(trimmedStatement);
 					}
 				}
@@ -221,38 +226,29 @@ public class CassandraConnection implements AutoCloseable {
 		}
 	}
 
-	public void runMigration(File file, String sha) {
-		runMigration(file, sha, false);
-	}
-
-	public void removeMigration(String fileName) {
+	private void removeMigration(String fileName) {
 		File file = new File(fileName);
 		execute("DELETE FROM migrations WHERE name = ?", file.getName());
 	}
 
-	public boolean markMigration(String fileName, String sha, boolean override) {
+	private boolean markMigration(String fileName, String sha, boolean override) {
 
 		File file = new File(fileName);
 
-		String ifClause = override ? "" : "IF NOT EXISTS";
-
 		//We use the light weight transaction to make sure another process hasn't started the work, but only if we aren't overriding
+		String ifClause = override ? "" : "IF NOT EXISTS";
 		ResultSet result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) " + ifClause + ";", file.getName(), sha);
 
-		//We know by having IF NOT EXISTS there will always be a row returned with a column of applied
-		return ((boolean)(override ? true : result.one().getBool("[applied]")));
+		return override || result.wasApplied();
 	}
 
 	public boolean markMigration(String fileName, String sha) {
 		return markMigration(fileName, sha, false);
 	}
 
-	public boolean markMigration(File file, String sha) {
-		return markMigration(file.getName(), sha, false);
-	}
-
 	public String getMigrationMd5(String fileName) {
-		ResultSet result = execute("SELECT sha FROM migrations WHERE name=?", fileName);
+		File file = new File(fileName);
+		ResultSet result = execute("SELECT sha FROM migrations WHERE name=?", file.getName());
 		if (result.isExhausted()) {
 			return null;
 		}

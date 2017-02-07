@@ -36,8 +36,10 @@ dependencies {
 
 	testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
 	testCompile 'org.codehaus.groovy:groovy-all:2.4.7'
-	testRuntime 'io.netty:netty-all:4.1.4.Final'
 	testCompile 'org.cassandraunit:cassandra-unit:3.0.0.1'
+	testCompile 'cglib:cglib-nodep:3.2.4'
+	testCompile 'org.objenesis:objenesis:2.4'
+	testRuntime 'io.netty:netty-all:4.1.4.Final'
 	testRuntime 'ch.qos.logback:logback-classic:1.1.7'
 }
 
