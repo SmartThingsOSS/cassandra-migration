@@ -1,7 +1,9 @@
 package smartthings.cassandra
 
-import com.datastax.driver.core.*
-import smartthings.migration.CassandraMigrationException
+import com.datastax.driver.core.ExecutionInfo
+import com.datastax.driver.core.ResultSet
+import com.datastax.driver.core.Row
+import com.datastax.driver.core.Session
 import smartthings.migration.MigrationParameters
 import spock.lang.Specification
 
@@ -65,9 +67,7 @@ class CassandraConnectionSpec extends Specification {
 		1 * session.execute('CREATE TABLE;') >> createResultSet
 		1 * createResultSet.getExecutionInfo() >> createExecutionInfo
 		1 * createExecutionInfo.isSchemaInAgreement() >> false
-		1 * session.execute('DELETE FROM migrations WHERE name = ?', [migrationFileName])
 		0 * _
-		thrown(CassandraMigrationException)
 	}
 
 	def "Gets migration MD5"() {
