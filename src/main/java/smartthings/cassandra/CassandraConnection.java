@@ -62,7 +62,10 @@ public class CassandraConnection implements AutoCloseable {
 	public void connect() throws Exception {
 		if (session == null) {
 			logger.debug("Connecting to Cassandra at " + host + ":" + port);
-			Cluster.Builder builder = Cluster.builder().addContactPoint(host).withPort(port);
+
+			QueryOptions queryOptions = new QueryOptions().setConsistencyLevel(ConsistencyLevel.ALL);
+
+			Cluster.Builder builder = Cluster.builder().addContactPoint(host).withPort(port).withMaxSchemaAgreementWaitSeconds(20).withQueryOptions(queryOptions);
 
 			if (all(truststorePath, truststorePassword, keystorePath, keystorePassword)) {
 				logger.debug("Using SSL for the connection");
