@@ -127,6 +127,10 @@ public class CassandraConnection implements AutoCloseable {
 		return session.execute(query);
 	}
 
+	public ResultSet execute(Statement query) {
+		return session.execute(query);
+	}
+
 	public void backfillMigrations() {
 		if (migrationsTableExists()) {
 			ResultSet result = execute("SELECT * FROM migrations");
@@ -251,7 +255,10 @@ public class CassandraConnection implements AutoCloseable {
 
 	public String getMigrationMd5(String fileName) {
 		File file = new File(fileName);
-		ResultSet result = execute("SELECT sha FROM migrations WHERE name=?", file.getName());
+		Statement query = new SimpleStatement("SELECT sha FROM migrations WHERE name=?", file.getName())
+				.setConsistencyLevel(ConsistencyLevel.QUORUM);
+
+		ResultSet result = execute(query);
 		if (result.isExhausted()) {
 			return null;
 		}

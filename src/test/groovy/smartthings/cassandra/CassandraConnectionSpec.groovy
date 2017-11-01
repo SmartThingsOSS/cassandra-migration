@@ -79,7 +79,12 @@ class CassandraConnectionSpec extends Specification {
 		String result = cassandraConnection.getMigrationMd5('/tmp/add-column.cql')
 
 		then:
-		1 * session.execute('SELECT sha FROM migrations WHERE name=?', ['add-column.cql']) >> resultSet
+		1 * session.execute(_ as Statement) >> { SimpleStatement s ->
+			assert s.getQueryString() == 'SELECT sha FROM migrations WHERE name=?'
+			assert s.getObject(0) == 'add-column.cql'
+			assert s.getConsistencyLevel() == ConsistencyLevel.QUORUM
+			resultSet
+		}
 		1 * resultSet.isExhausted() >> false
 		1 * resultSet.one() >> row
 		1 * row.getString('sha') >> '1234567890'
@@ -95,7 +100,12 @@ class CassandraConnectionSpec extends Specification {
 		String result = cassandraConnection.getMigrationMd5('/tmp/add-column.cql')
 
 		then:
-		1 * session.execute('SELECT sha FROM migrations WHERE name=?', ['add-column.cql']) >> resultSet
+		1 * session.execute(_ as Statement) >> { SimpleStatement s ->
+			assert s.getQueryString() == 'SELECT sha FROM migrations WHERE name=?'
+			assert s.getObject(0) == 'add-column.cql'
+			assert s.getConsistencyLevel() == ConsistencyLevel.QUORUM
+			resultSet
+		}
 		1 * resultSet.isExhausted() >> true
 		0 * _
 		result == null
