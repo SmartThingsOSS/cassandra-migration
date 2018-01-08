@@ -5,7 +5,6 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import smartthings.migration.CassandraMigrationException;
 import smartthings.migration.MigrationParameters;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -208,7 +207,6 @@ public class CassandraConnection implements AutoCloseable {
 						ResultSet resultSet = execute(trimmedStatement + ";");
 						if (!resultSet.getExecutionInfo().isSchemaInAgreement()) {
 							logger.error("Schema is not in agreement");
-							throw new CassandraMigrationException("Schema is not in agreement.");
 						}
 						runStatements.add(trimmedStatement);
 					}
