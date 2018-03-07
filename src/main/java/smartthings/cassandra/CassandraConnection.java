@@ -235,7 +235,10 @@ public class CassandraConnection implements AutoCloseable {
 
 	private void removeMigration(String fileName) {
 		File file = new File(fileName);
-		execute("DELETE FROM migrations WHERE name = ?", file.getName());
+		ResultSet result = execute("DELETE FROM migrations WHERE name = ? IF EXISTS", file.getName());
+		if (!result.wasApplied()) {
+			logger.error("removing migration mark failed for " + fileName);
+		}
 	}
 
 	private boolean markMigration(String fileName, String sha, boolean override) {
