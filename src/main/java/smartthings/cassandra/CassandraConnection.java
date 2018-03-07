@@ -131,9 +131,17 @@ public class CassandraConnection implements AutoCloseable {
 		return session.execute(query);
 	}
 
+	private ResultSet executeWithQuorum(String query, Object... params) {
+		return executeWithQuorum(new SimpleStatement(query, params));
+	}
+
+	private ResultSet executeWithQuorum(Statement query) {
+		return execute(query.setConsistencyLevel(ConsistencyLevel.QUORUM));
+	}
+
 	public void backfillMigrations() {
 		if (migrationsTableExists()) {
-			ResultSet result = execute("SELECT * FROM migrations");
+			ResultSet result = executeWithQuorum("SELECT * FROM migrations");
 			List<Row> results = result.all();
 			int numMigrated = 0;
 			logger.info("Checking for migrations that need to be backfilled");
@@ -172,13 +180,13 @@ public class CassandraConnection implements AutoCloseable {
 	public boolean migrationsTableExists() {
 		logger.debug("Checking for migrations table.");
 		if (cassandraVersion.startsWith("3.")) {
-			ResultSet existingMigration = execute("SELECT table_name " +
+			ResultSet existingMigration = executeWithQuorum("SELECT table_name " +
 							"FROM system_schema.tables	" +
 							"WHERE keyspace_name=? and table_name = 'migrations';",
 					keyspace);
 			return (existingMigration.one() != null);
 		} else {
-			ResultSet existingMigration = execute("SELECT columnfamily_name " +
+			ResultSet existingMigration = executeWithQuorum("SELECT columnfamily_name " +
 							"FROM System.schema_columnfamilies	" +
 							"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
 					keyspace);
@@ -258,10 +266,7 @@ public class CassandraConnection implements AutoCloseable {
 
 	public String getMigrationMd5(String fileName) {
 		File file = new File(fileName);
-		Statement query = new SimpleStatement("SELECT sha FROM migrations WHERE name=?", file.getName())
-				.setConsistencyLevel(ConsistencyLevel.QUORUM);
-
-		ResultSet result = execute(query);
+		ResultSet result = executeWithQuorum("SELECT sha FROM migrations WHERE name=?", file.getName());
 		if (result.isExhausted()) {
 			return null;
 		}
