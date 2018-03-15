@@ -90,6 +90,34 @@ public class CassandraConnection implements AutoCloseable {
 				.one().getString(0);
 	}
 
+	// et tu, Brute?
+	public boolean becomeLeader(String leaderId) {
+		// problems with this:
+		// - if the elected leader bombs and there is no finally clause that successfully removes/nulls the leader,
+		//   then leadership is never relinquished
+		// - the leaderId is currently a UUID randomly generated per run, so the dead leader won't be known unless
+		//   we check logs
+		// - perhaps we should TTL the leader column value for 1 hour...
+		// - also, the chicken/egg problem if the leader column hasn't been setup yet. We TRY to do that but may not
+		//   have paxos controls
+		// - we just clear out the leader at the end without a status update as to success...
+		// - marker column differences in update vs insert on virgin check vs cleared out?
+		// - disclaimer: testing needed.
+		try {
+			ResultSet rs = execute("UPDATE migrations SET leader = '" + leaderId + "' WHERE name = 'LEADER ELECTION' IF leader = NULL");
+			Row leaderResultRow = rs.one();
+			if (leaderResultRow == null) {
+				return false;
+			}
+			boolean leaderResult = leaderResultRow.getBool(0);
+			logger.info("leader "+leaderId+"attempt result: "+leaderResult);
+			return leaderResult;
+		} catch (Exception e) {
+			logger.error("Exception in leader election, default to NOT leader "+leaderId,e);
+			return false;
+		}
+	}
+
 	@Override
 	public void close() {
 		if (cluster != null) {
@@ -132,7 +160,7 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public void backfillMigrations() {
-		if (migrationsTableExists()) {
+		if (migrationsTableExists() && migrationsTableHasLeaderColumn()) {
 			ResultSet result = execute("SELECT * FROM migrations");
 			List<Row> results = result.all();
 			int numMigrated = 0;
@@ -159,14 +187,48 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public void setupMigration() {
-
+		// CEM: we may have quite the nasty chicken and egg problem: if there is no lock table to get a lock, how
+		// do we prevent multiple clients from setting up the migrations table locking version?
+		// ... in this case we will do a lot of schema checks and rely on the IF NOT EXISTS on the original table
+		// creation as a sort of LWT check. No idea if the IF NOT EXISTS on table creation performs paxos LWT or not...
+		// ALTER has no such IF NOT EXISTS. Since it is basically an idempotent change on an existing table at that
+		// point, we might be good, as long as the schema agreement passes.
+		if (!session.getCluster().getMetadata().checkSchemaAgreement()) {
+			throw new CassandraMigrationException("Migration table setup precheck: schema not in agreement");
+		}
 		if (!migrationsTableExists()) {
 			logger.info("migrations table not found creating.");
-			execute("CREATE TABLE IF NOT EXISTS migrations " +
-					"(name text, sha text, " +
+			ResultSet rs = execute("CREATE TABLE IF NOT EXISTS migrations " +
+					"(name text, sha text, leader text" +
 					"PRIMARY KEY (name));");
+			if (!rs.getExecutionInfo().isSchemaInAgreement()) {
+				throw new CassandraMigrationException("Migration table creation postcheck: schema not in agreement");
+			}
+			return;
 		}
+		if (!migrationsTableHasLeaderColumn()) {
+			logger.info("upgrading migrations table to lockable/leader version");
+			ResultSet rs = execute ("ALTER TABLE migrations ADD COLUMN leader text;");
+			if (!rs.getExecutionInfo().isSchemaInAgreement()) {
+				throw new CassandraMigrationException("Migration table leader alter postcheck: schema not in agreement");
+			}
+		}
+	}
 
+	public boolean migrationsTableHasLeaderColumn() {
+		logger.debug("Check for non-leader migrations table");
+		String defaultKeyspace = null;
+		try {
+			Metadata clusterMeta = session.getCluster().getMetadata();
+			defaultKeyspace = session.getLoggedKeyspace();
+			KeyspaceMetadata keyspaceMetadata = clusterMeta.getKeyspace(defaultKeyspace);
+			TableMetadata tableMetadata = keyspaceMetadata.getTable("migrations");
+			ColumnMetadata leaderCol = tableMetadata.getColumn("leader");
+			return leaderCol != null;
+		} catch (Exception e) {
+			logger.error("Error in detecting leader column in migrations table in keyspace "+defaultKeyspace,e);
+			throw new CassandraMigrationException("Error in detecting leader column in migrations table in keyspace "+defaultKeyspace,e);
+		}
 	}
 
 	public boolean migrationsTableExists() {
@@ -206,6 +268,7 @@ public class CassandraConnection implements AutoCloseable {
 					String trimmedStatement = statement.trim();
 					if (!trimmedStatement.equals("")) {
 						ResultSet resultSet = execute(trimmedStatement + ";");
+						// may need to up Cluster.Builder.withMaxSchemaAgreementWaitSeconds
 						if (!resultSet.getExecutionInfo().isSchemaInAgreement()) {
 							logger.error("Schema is not in agreement");
 							throw new CassandraMigrationException("Schema is not in agreement.");

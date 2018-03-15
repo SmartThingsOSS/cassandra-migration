@@ -16,6 +16,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 public class MigrationRunner {
 	private Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
@@ -50,11 +51,18 @@ public class MigrationRunner {
 					break;
 			}
 
+			boolean isLeader = false;
 			try {
 				connection.connect();
 				connection.backfillMigrations(); //Cleans up old style migrations with full file path
 				connection.setKeyspace(migrationParameters.getKeyspace());
 				connection.setupMigration();
+				isLeader = connection.becomeLeader(migrationParameters.getLeaderId());
+				if (!isLeader) {
+					// TODO: per Arun, we should have the other nodes that didn't become leader wait and periodically check for the lock release and if the migrations were performed.
+					return;
+				}
+				connection.backfillMigrations(); //Cleans up old style migrations with full file path
 				if (migrationParameters.getMigrationsLogFile() != null) {
 					logger.info("Using Migration Log File: " + migrationParameters.getMigrationsLogFile());
 					List<String> migrations = loadResource(migrationParameters.getMigrationsLogFile()).readLines();
@@ -91,6 +99,16 @@ public class MigrationRunner {
 			} catch (Exception e) {
 				logger.error("Failed while running migrations.", e);
 				throw new CassandraMigrationException("Failed while running migrations.", e);
+			} finally {
+				if (isLeader) {
+					try {
+						connection.execute("DELETE leader FROM migrations WHERE name = 'LEADER ELECTION'");
+						logger.info("leader " + migrationParameters.getLeaderId() + " should not longer be leader");
+					} catch (Exception cleanupException) {
+						// this is a desperation cleanup task, so we just log-and-eat...
+						// print to stderr/stdout too?
+					}
+				}
 			}
 		}
 	}
