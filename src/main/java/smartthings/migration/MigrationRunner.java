@@ -54,7 +54,7 @@ public class MigrationRunner {
 			boolean isLeader = false;
 			try {
 				connection.connect();
-				connection.backfillMigrations(); //Cleans up old style migrations with full file path
+				// too early! must be leader first //connection.backfillMigrations(); //Cleans up old style migrations with full file path
 				connection.setKeyspace(migrationParameters.getKeyspace());
 				connection.setupMigration();
 				isLeader = connection.becomeLeader(migrationParameters.getLeaderId());
