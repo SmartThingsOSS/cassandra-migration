@@ -40,6 +40,8 @@ public class CassandraConnection implements AutoCloseable {
 
 	private String cassandraVersion;
 
+	private static String UPSERT_LOCKTABLE = "UPDATE databasechangelock SET locked = ?, lockedby = ? WHERE id = 1";
+
 	public CassandraConnection(MigrationParameters parameters) {
 		cipherSuites[0] = "TLS_RSA_WITH_AES_128_CBC_SHA";
 		cipherSuites[1] = "TLS_RSA_WITH_AES_256_CBC_SHA";
@@ -90,33 +92,18 @@ public class CassandraConnection implements AutoCloseable {
 				.one().getString(0);
 	}
 
-	// et tu, Brute?
-	public boolean becomeLeader(String leaderId) {
-		// problems with this:
-		// - if the elected leader bombs and there is no finally clause that successfully removes/nulls the leader,
-		//   then leadership is never relinquished
-		// - the leaderId is currently a UUID randomly generated per run, so the dead leader won't be known unless
-		//   we check logs
-		// - perhaps we should TTL the leader column value for 1 hour...
-		// - also, the chicken/egg problem if the leader column hasn't been setup yet. We TRY to do that but may not
-		//   have paxos controls
-		// - we just clear out the leader at the end without a status update as to success...
-		// - marker column differences in update vs insert on virgin check vs cleared out?
-		// - disclaimer: testing needed.
-		try {
-			ResultSet rs = execute("UPDATE migrations SET leader = '" + leaderId + "' WHERE name = 'LEADER ELECTION' IF leader = NULL");
-			Row leaderResultRow = rs.one();
-			if (leaderResultRow == null) {
-				return false;
-			}
-			boolean leaderResult = leaderResultRow.getBool(0);
-			logger.info("leader "+leaderId+"attempt result: "+leaderResult);
-			return leaderResult;
-		} catch (Exception e) {
-			logger.error("Exception in leader election, default to NOT leader "+leaderId,e);
-			return false;
-		}
+	public ResultSet checkMigrationRunning() {
+		ResultSet resultset =  execute("SELECT * FROM databasechangelock WHERE id = 1");
+		return resultset;
 	}
+
+	public boolean isMigrationRunning() {
+		ResultSet resultSet =  execute("SELECT * FROM databasechangelock WHERE id = 1");
+
+		boolean isRunning = resultSet.one().getBool("locked");
+		return isRunning;
+	}
+
 
 	@Override
 	public void close() {
@@ -160,7 +147,7 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public void backfillMigrations() {
-		if (migrationsTableExists() && migrationsTableHasLeaderColumn()) {
+		if (tableExists("migrations")) {
 			ResultSet result = execute("SELECT * FROM migrations");
 			List<Row> results = result.all();
 			int numMigrated = 0;
@@ -187,65 +174,52 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public void setupMigration() {
-		// CEM: we may have quite the nasty chicken and egg problem: if there is no lock table to get a lock, how
-		// do we prevent multiple clients from setting up the migrations table locking version?
-		// ... in this case we will do a lot of schema checks and rely on the IF NOT EXISTS on the original table
-		// creation as a sort of LWT check. No idea if the IF NOT EXISTS on table creation performs paxos LWT or not...
-		// ALTER has no such IF NOT EXISTS. Since it is basically an idempotent change on an existing table at that
-		// point, we might be good, as long as the schema agreement passes.
+
 		if (!session.getCluster().getMetadata().checkSchemaAgreement()) {
 			throw new CassandraMigrationException("Migration table setup precheck: schema not in agreement");
 		}
-		if (!migrationsTableExists()) {
+		if (!tableExists("migrations")) {
 			logger.info("migrations table not found creating.");
 			ResultSet rs = execute("CREATE TABLE IF NOT EXISTS migrations " +
-					"(name text, sha text, leader text" +
+					"(name text, sha text," +
 					"PRIMARY KEY (name));");
 			if (!rs.getExecutionInfo().isSchemaInAgreement()) {
 				throw new CassandraMigrationException("Migration table creation postcheck: schema not in agreement");
 			}
-			return;
 		}
-		if (!migrationsTableHasLeaderColumn()) {
-			logger.info("upgrading migrations table to lockable/leader version");
-			ResultSet rs = execute ("ALTER TABLE migrations ADD COLUMN leader text;");
+		if(!tableExists("databasechangelock")){
+			logger.info("lock table not found creating.");
+			ResultSet rs = execute("CREATE TABLE IF NOT EXISTS databasechangelock " +
+					"(id int, locked boolean, lockedby text, " +
+					"PRIMARY KEY (id));");
 			if (!rs.getExecutionInfo().isSchemaInAgreement()) {
-				throw new CassandraMigrationException("Migration table leader alter postcheck: schema not in agreement");
+				throw new CassandraMigrationException("databasechangelock table creation postcheck: schema not in agreement");
 			}
+
+			//populate the entry
+			upsertLockTable(false, "NONE");
 		}
 	}
 
-	public boolean migrationsTableHasLeaderColumn() {
-		logger.debug("Check for non-leader migrations table");
-		String defaultKeyspace = null;
-		try {
-			Metadata clusterMeta = session.getCluster().getMetadata();
-			defaultKeyspace = session.getLoggedKeyspace();
-			KeyspaceMetadata keyspaceMetadata = clusterMeta.getKeyspace(defaultKeyspace);
-			TableMetadata tableMetadata = keyspaceMetadata.getTable("migrations");
-			ColumnMetadata leaderCol = tableMetadata.getColumn("leader");
-			return leaderCol != null;
-		} catch (Exception e) {
-			logger.error("Error in detecting leader column in migrations table in keyspace "+defaultKeyspace,e);
-			throw new CassandraMigrationException("Error in detecting leader column in migrations table in keyspace "+defaultKeyspace,e);
-		}
+	public void upsertLockTable(Object... params){
+		execute(UPSERT_LOCKTABLE, params);
 	}
 
-	public boolean migrationsTableExists() {
-		logger.debug("Checking for migrations table.");
+	public boolean tableExists(String tableName){
+		logger.debug("Checking for {} table ", tableName);
+		ResultSet tableExisting;
 		if (cassandraVersion.startsWith("3.")) {
-			ResultSet existingMigration = execute("SELECT table_name " +
+			tableExisting = execute("SELECT table_name " +
 							"FROM system_schema.tables	" +
-							"WHERE keyspace_name=? and table_name = 'migrations';",
-					keyspace);
-			return (existingMigration.one() != null);
+							"WHERE keyspace_name=? and table_name = ?;",
+					keyspace, tableName);
 		} else {
-			ResultSet existingMigration = execute("SELECT columnfamily_name " +
+			tableExisting = execute("SELECT columnfamily_name " +
 							"FROM System.schema_columnfamilies	" +
-							"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
-					keyspace);
-			return (existingMigration.one() != null);
+							"WHERE keyspace_name=? and columnfamily_name = ?;",
+					keyspace, tableName);
 		}
+		return (tableExisting.one() != null);
 	}
 
 	public void runMigration(File file, String sha, boolean override) {
