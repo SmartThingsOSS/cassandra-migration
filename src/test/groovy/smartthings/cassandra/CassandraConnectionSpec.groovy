@@ -54,6 +54,7 @@ class CassandraConnectionSpec extends Specification {
 		String migrationFileName = 'make-a-table.cql'
 		ResultSet migrationsResultSet = Mock()
 		ResultSet createResultSet = Mock()
+		ResultSet removeResultSet = Mock()
 		ExecutionInfo createExecutionInfo = Mock()
 
 		when:
@@ -65,7 +66,8 @@ class CassandraConnectionSpec extends Specification {
 		1 * session.execute('CREATE TABLE;') >> createResultSet
 		1 * createResultSet.getExecutionInfo() >> createExecutionInfo
 		1 * createExecutionInfo.isSchemaInAgreement() >> false
-		1 * session.execute('DELETE FROM migrations WHERE name = ?', [migrationFileName])
+		1 * session.execute('DELETE FROM migrations WHERE name = ? IF EXISTS', [migrationFileName]) >> removeResultSet
+		1 * removeResultSet.wasApplied() >> true
 		0 * _
 		thrown(CassandraMigrationException)
 	}

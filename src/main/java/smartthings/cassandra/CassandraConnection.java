@@ -40,6 +40,12 @@ public class CassandraConnection implements AutoCloseable {
 
 	private String cassandraVersion;
 
+	private static String UPSERT_LOCKTABLE = "UPDATE databasechangelock SET locked = ?, lockedby = ? WHERE id = 1 IF locked = false";
+	private static String UPSERT_RELEASE_LOCK = "UPDATE databasechangelock SET locked = ?, lockedby = ? WHERE id = 1";
+	private static String INSERT_LOCK = "INSERT INTO databasechangelock(id, locked, lockedby) values(1, false, 'NONE') if not exists";
+
+
+
 	public CassandraConnection(MigrationParameters parameters) {
 		cipherSuites[0] = "TLS_RSA_WITH_AES_128_CBC_SHA";
 		cipherSuites[1] = "TLS_RSA_WITH_AES_256_CBC_SHA";
@@ -90,6 +96,19 @@ public class CassandraConnection implements AutoCloseable {
 				.one().getString(0);
 	}
 
+	public ResultSet checkMigrationRunning() {
+		ResultSet resultset = execute("SELECT * FROM databasechangelock WHERE id = 1");
+		return resultset;
+	}
+
+	public boolean isMigrationRunning() {
+		ResultSet resultSet = execute("SELECT * FROM databasechangelock WHERE id = 1");
+
+		boolean isRunning = resultSet.one().getBool("locked");
+		return isRunning;
+	}
+
+
 	@Override
 	public void close() {
 		if (cluster != null) {
@@ -132,7 +151,7 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public void backfillMigrations() {
-		if (migrationsTableExists()) {
+		if (tableExists("migrations")) {
 			ResultSet result = execute("SELECT * FROM migrations");
 			List<Row> results = result.all();
 			int numMigrated = 0;
@@ -160,30 +179,55 @@ public class CassandraConnection implements AutoCloseable {
 
 	public void setupMigration() {
 
-		if (!migrationsTableExists()) {
-			logger.info("migrations table not found creating.");
-			execute("CREATE TABLE IF NOT EXISTS migrations " +
-					"(name text, sha text, " +
-					"PRIMARY KEY (name));");
+		if (!session.getCluster().getMetadata().checkSchemaAgreement()) {
+			throw new CassandraMigrationException("Migration table setup precheck: schema not in agreement");
 		}
+		if (!tableExists("migrations")) {
+			logger.info("migrations table not found creating.");
+			ResultSet rs = execute("CREATE TABLE IF NOT EXISTS migrations " +
+					"(name text, sha text," +
+					"PRIMARY KEY (name));");
+			if (!rs.getExecutionInfo().isSchemaInAgreement()) {
+				throw new CassandraMigrationException("Migration table creation postcheck: schema not in agreement");
+			}
+		}
+		if (!tableExists("databasechangelock")) {
+			logger.info("lock table not found creating.");
+			ResultSet rs = execute("CREATE TABLE IF NOT EXISTS databasechangelock " +
+					"(id int, locked boolean, lockedby text, " +
+					"PRIMARY KEY (id));");
+			if (!rs.getExecutionInfo().isSchemaInAgreement()) {
+				throw new CassandraMigrationException("databasechangelock table creation postcheck: schema not in agreement");
+			}
 
+			//populate the entry
+			execute(INSERT_LOCK);
+		}
 	}
 
-	public boolean migrationsTableExists() {
-		logger.debug("Checking for migrations table.");
+	public ResultSet upsertLockTable(Object... params) {
+		return execute(UPSERT_LOCKTABLE, params);
+	}
+
+	public void releaseLockTable(Object... params) {
+		execute(UPSERT_RELEASE_LOCK, params);
+	}
+
+	public boolean tableExists(String tableName) {
+		logger.debug("Checking for {} table ", tableName);
+		ResultSet tableExisting;
 		if (cassandraVersion.startsWith("3.")) {
-			ResultSet existingMigration = execute("SELECT table_name " +
+			tableExisting = execute("SELECT table_name " +
 							"FROM system_schema.tables	" +
-							"WHERE keyspace_name=? and table_name = 'migrations';",
-					keyspace);
-			return (existingMigration.one() != null);
+							"WHERE keyspace_name=? and table_name = ?;",
+					keyspace, tableName);
 		} else {
-			ResultSet existingMigration = execute("SELECT columnfamily_name " +
+			tableExisting = execute("SELECT columnfamily_name " +
 							"FROM System.schema_columnfamilies	" +
-							"WHERE keyspace_name=? and columnfamily_name = 'migrations';",
-					keyspace);
-			return (existingMigration.one() != null);
+							"WHERE keyspace_name=? and columnfamily_name = ?;",
+					keyspace, tableName);
 		}
+		return (tableExisting.one() != null);
 	}
 
 	public void runMigration(File file, String sha, boolean override) {
@@ -206,6 +250,7 @@ public class CassandraConnection implements AutoCloseable {
 					String trimmedStatement = statement.trim();
 					if (!trimmedStatement.equals("")) {
 						ResultSet resultSet = execute(trimmedStatement + ";");
+						// may need to up Cluster.Builder.withMaxSchemaAgreementWaitSeconds
 						if (!resultSet.getExecutionInfo().isSchemaInAgreement()) {
 							logger.error("Schema is not in agreement");
 							throw new CassandraMigrationException("Schema is not in agreement.");
@@ -235,7 +280,10 @@ public class CassandraConnection implements AutoCloseable {
 
 	private void removeMigration(String fileName) {
 		File file = new File(fileName);
-		execute("DELETE FROM migrations WHERE name = ?", file.getName());
+		ResultSet result = execute("DELETE FROM migrations WHERE name = ? IF EXISTS", file.getName());
+		if (!result.wasApplied()) {
+			logger.error("removing migration mark failed for " + fileName);
+		}
 	}
 
 	private boolean markMigration(String fileName, String sha, boolean override) {

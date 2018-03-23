@@ -4,6 +4,7 @@ import com.datastax.driver.core.Session;
 
 import java.io.File;
 import java.util.Optional;
+import java.util.UUID;
 
 public class MigrationParameters {
 
@@ -22,6 +23,7 @@ public class MigrationParameters {
 	private String truststorePassword;
 	private String keystorePath;
 	private String keystorePassword;
+	private String leaderId = UUID.randomUUID().toString();
 
 	private Session session;
 
@@ -214,6 +216,11 @@ public class MigrationParameters {
 	public void setSession(Session session) {
 		this.session = session;
 	}
+
+	public String getLeaderId() { return leaderId; }
+
+	public void setLeaderId(String leaderId) { this.leaderId = leaderId; }
+
 
 	public static class Builder {
 		private File migrationFile;

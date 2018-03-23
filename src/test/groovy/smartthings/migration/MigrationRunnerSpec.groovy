@@ -18,7 +18,7 @@ class MigrationRunnerSpec extends Specification {
 
 	def setup() {
 		CQLDataSet dataSet = new ClassPathCQLDataSet('test-baseline.cql', keyspace)
-		cassandraCQLUnit = new CassandraCQLUnit(dataSet, 'test-cassandra.yaml', 300000L, 3000)
+		cassandraCQLUnit = new CassandraCQLUnit(dataSet, 'test-cassandra.yaml', 30000L, 3000)
 		cassandraCQLUnit.before()
 	}
 
