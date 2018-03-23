@@ -40,7 +40,11 @@ public class CassandraConnection implements AutoCloseable {
 
 	private String cassandraVersion;
 
-	private static String UPSERT_LOCKTABLE = "UPDATE databasechangelock SET locked = ?, lockedby = ? WHERE id = 1";
+	private static String UPSERT_LOCKTABLE = "UPDATE databasechangelock SET locked = ?, lockedby = ? WHERE id = 1 IF locked = false";
+	private static String UPSERT_RELEASE_LOCK = "UPDATE databasechangelock SET locked = ?, lockedby = ? WHERE id = 1";
+	private static String INSERT_LOCK = "INSERT INTO databasechangelock(id, locked, lockedby) values(1, false, 'NONE') if not exists";
+
+
 
 	public CassandraConnection(MigrationParameters parameters) {
 		cipherSuites[0] = "TLS_RSA_WITH_AES_128_CBC_SHA";
@@ -93,12 +97,12 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public ResultSet checkMigrationRunning() {
-		ResultSet resultset =  execute("SELECT * FROM databasechangelock WHERE id = 1");
+		ResultSet resultset = execute("SELECT * FROM databasechangelock WHERE id = 1");
 		return resultset;
 	}
 
 	public boolean isMigrationRunning() {
-		ResultSet resultSet =  execute("SELECT * FROM databasechangelock WHERE id = 1");
+		ResultSet resultSet = execute("SELECT * FROM databasechangelock WHERE id = 1");
 
 		boolean isRunning = resultSet.one().getBool("locked");
 		return isRunning;
@@ -187,7 +191,7 @@ public class CassandraConnection implements AutoCloseable {
 				throw new CassandraMigrationException("Migration table creation postcheck: schema not in agreement");
 			}
 		}
-		if(!tableExists("databasechangelock")){
+		if (!tableExists("databasechangelock")) {
 			logger.info("lock table not found creating.");
 			ResultSet rs = execute("CREATE TABLE IF NOT EXISTS databasechangelock " +
 					"(id int, locked boolean, lockedby text, " +
@@ -197,15 +201,19 @@ public class CassandraConnection implements AutoCloseable {
 			}
 
 			//populate the entry
-			upsertLockTable(false, "NONE");
+			execute(INSERT_LOCK);
 		}
 	}
 
-	public void upsertLockTable(Object... params){
-		execute(UPSERT_LOCKTABLE, params);
+	public ResultSet upsertLockTable(Object... params) {
+		return execute(UPSERT_LOCKTABLE, params);
 	}
 
-	public boolean tableExists(String tableName){
+	public void releaseLockTable(Object... params) {
+		execute(UPSERT_RELEASE_LOCK, params);
+	}
+
+	public boolean tableExists(String tableName) {
 		logger.debug("Checking for {} table ", tableName);
 		ResultSet tableExisting;
 		if (cassandraVersion.startsWith("3.")) {

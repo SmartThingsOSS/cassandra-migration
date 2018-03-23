@@ -53,17 +53,10 @@ public class MigrationRunner {
 				connection.setKeyspace(migrationParameters.getKeyspace());
 				connection.setupMigration();
 
-				ResultSet resultSet = connection.checkMigrationRunning();
-
-				boolean isRunning = resultSet.one().getBool("locked");
-				if(isRunning){
-					logger.info("Migration is being running by {}", resultSet.one().getString("lockedby"));
-				}
-
-				if(!isRunning){
-					//upsert the databasechangelog table to the active
+				// attempt to become leader
+				boolean isLeader = connection.upsertLockTable(true, InetAddress.getLocalHost().getHostName()).wasApplied();
+				if (isLeader){
 					logger.info("Starting Migration.... ");
-					connection.upsertLockTable(true, InetAddress.getLocalHost().getHostName());
 
 					connection.backfillMigrations(); //Cleans up old style migrations with full file path
 					if (migrationParameters.getMigrationsLogFile() != null) {
@@ -98,8 +91,8 @@ public class MigrationRunner {
 						}
 					}
 					logger.info("Done with migration, releasing lock.. ");
-					connection.upsertLockTable(false, "NONE");
-				}else {
+					connection.releaseLockTable(false, "NONE");
+				} else {
 					CountDownLatch countDownLatch = new CountDownLatch(1);
 					Thread thread = new Thread(new MigrationChecker(connection, countDownLatch));
 					thread.start();
@@ -127,8 +120,14 @@ public class MigrationRunner {
 
 		@Override
 		public void run() {
+			int maxIterations = 500;
+			int iterations = 0;
 			while (connection.isMigrationRunning()) {
 				logger.info("Migration is running.. please wait..");
+				iterations++;
+				if (iterations >= maxIterations) {
+					throw new CassandraMigrationException("Max iterations reached waiting for migrations to complete");
+				}
 				try {
 					Thread.sleep(2000);
 				} catch (InterruptedException e) {
