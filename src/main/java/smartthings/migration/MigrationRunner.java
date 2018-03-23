@@ -1,8 +1,8 @@
 package smartthings.migration;
 
+import com.datastax.driver.core.ResultSet;
 import com.google.common.base.Charsets;
 import com.google.common.io.CharSource;
-import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
 import org.slf4j.Logger;
@@ -11,11 +11,9 @@ import smartthings.cassandra.CassandraConnection;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.util.Arrays;
+import java.net.InetAddress;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 public class MigrationRunner {
 	private Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
@@ -52,39 +50,54 @@ public class MigrationRunner {
 
 			try {
 				connection.connect();
-				connection.backfillMigrations(); //Cleans up old style migrations with full file path
 				connection.setKeyspace(migrationParameters.getKeyspace());
 				connection.setupMigration();
-				if (migrationParameters.getMigrationsLogFile() != null) {
-					logger.info("Using Migration Log File: " + migrationParameters.getMigrationsLogFile());
-					List<String> migrations = loadResource(migrationParameters.getMigrationsLogFile()).readLines();
-					for (String file : migrations) {
-						if (!file.equalsIgnoreCase("")) {
-							String cql;
-							try {
-								cql = loadResource(file).read();
-							} catch (IOException e) {
-								throw new CassandraMigrationException("Error loading cql file " + file, e);
+
+				// attempt to become leader
+				boolean isLeader = connection.upsertLockTable(true, InetAddress.getLocalHost().getHostName()).wasApplied();
+				if (isLeader){
+					logger.info("Starting Migration.... ");
+
+					connection.backfillMigrations(); //Cleans up old style migrations with full file path
+					if (migrationParameters.getMigrationsLogFile() != null) {
+						logger.info("Using Migration Log File: " + migrationParameters.getMigrationsLogFile());
+						List<String> migrations = loadResource(migrationParameters.getMigrationsLogFile()).readLines();
+						for (String file : migrations) {
+							if (!file.equalsIgnoreCase("")) {
+								String cql;
+								try {
+									cql = loadResource(file).read();
+								} catch (IOException e) {
+									throw new CassandraMigrationException("Error loading cql file " + file, e);
+								}
+								handler.handle(file, cql);
 							}
-							handler.handle(file, cql);
+						}
+					} else if (migrationParameters.getMigrationFile() != null) {
+						File f = migrationParameters.getMigrationFile();
+						handler.handle(f.getName(), Files.toString(f, Charsets.UTF_8));
+					} else {
+						File migrationsDir = migrationParameters.getMigrationsDir();
+						logger.info("Using migrations Directory " + migrationsDir);
+						if (migrationsDir != null) {
+							File[] files = migrationsDir.listFiles();
+							if (files != null) {
+								for (File file : files) {
+									handler.handle(file.getName(), Files.toString(file, Charsets.UTF_8));
+								}
+							} else {
+								logger.warn("No files found in migrations directory.");
+							}
 						}
 					}
-				} else if (migrationParameters.getMigrationFile() != null) {
-					File f = migrationParameters.getMigrationFile();
-					handler.handle(f.getName(), Files.toString(f, Charsets.UTF_8));
+					logger.info("Done with migration, releasing lock.. ");
+					connection.releaseLockTable(false, "NONE");
 				} else {
-					File migrationsDir = migrationParameters.getMigrationsDir();
-					logger.info("Using migrations Directory " + migrationsDir);
-					if (migrationsDir != null) {
-						File[] files = migrationsDir.listFiles();
-						if (files != null) {
-							for (File file : files) {
-								handler.handle(file.getName(), Files.toString(file, Charsets.UTF_8));
-							}
-						} else {
-							logger.warn("No files found in migrations directory.");
-						}
-					}
+					CountDownLatch countDownLatch = new CountDownLatch(1);
+					Thread thread = new Thread(new MigrationChecker(connection, countDownLatch));
+					thread.start();
+					countDownLatch.await();
+					logger.info("Latch released... ");
 				}
 			} catch (CassandraMigrationException e) {
 				throw e;
@@ -92,6 +105,36 @@ public class MigrationRunner {
 				logger.error("Failed while running migrations.", e);
 				throw new CassandraMigrationException("Failed while running migrations.", e);
 			}
+		}
+	}
+
+	private class MigrationChecker implements Runnable {
+
+		private CassandraConnection connection;
+		private CountDownLatch countDownLatch;
+
+		public MigrationChecker (CassandraConnection connection, CountDownLatch countDownLatch){
+			this.connection = connection;
+			this.countDownLatch = countDownLatch;
+		}
+
+		@Override
+		public void run() {
+			int maxIterations = 500;
+			int iterations = 0;
+			while (connection.isMigrationRunning()) {
+				logger.info("Migration is running.. please wait..");
+				iterations++;
+				if (iterations >= maxIterations) {
+					throw new CassandraMigrationException("Max iterations reached waiting for migrations to complete");
+				}
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					logger.info("Migration checker interrupted", e);
+				}
+			}
+			countDownLatch.countDown();
 		}
 	}
 }
