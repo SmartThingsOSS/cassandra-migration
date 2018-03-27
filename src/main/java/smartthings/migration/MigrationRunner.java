@@ -54,8 +54,13 @@ public class MigrationRunner {
 				connection.setupMigration();
 
 				// attempt to become leader
-				boolean isLeader = connection.upsertLockTable(true, InetAddress.getLocalHost().getHostName()).wasApplied();
-				if (isLeader){
+				String currentHost = InetAddress.getLocalHost().getHostName();
+				boolean isLeader = connection.upsertLockTable(true, currentHost).wasApplied();
+
+				ResultSet resultSet = connection.execute("SELECT lockedby from databasechangelock where id = 1");
+				String migrationRunnerHost = resultSet.one().getString("lockedby");
+
+				if (isLeader && currentHost.equals(migrationRunnerHost)){
 					logger.info("Starting Migration.... ");
 
 					connection.backfillMigrations(); //Cleans up old style migrations with full file path
@@ -122,11 +127,11 @@ public class MigrationRunner {
 		public void run() {
 			int maxIterations = 500;
 			int iterations = 0;
-			while (connection.isMigrationRunning()) {
+			while (connection.isMigrationRunning() && (iterations <= maxIterations)) {
 				logger.info("Migration is running.. please wait..");
 				iterations++;
-				if (iterations >= maxIterations) {
-					throw new CassandraMigrationException("Max iterations reached waiting for migrations to complete");
+				if(iterations == maxIterations) {
+					logger.info("Max number of iterations reached");
 				}
 				try {
 					Thread.sleep(2000);
