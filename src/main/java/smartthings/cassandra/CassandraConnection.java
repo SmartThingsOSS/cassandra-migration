@@ -69,7 +69,7 @@ public class CassandraConnection implements AutoCloseable {
 		if (session == null) {
 			logger.debug("Connecting to Cassandra at " + host + ":" + port);
 
-			QueryOptions queryOptions = new QueryOptions().setConsistencyLevel(ConsistencyLevel.ALL);
+			QueryOptions queryOptions = new QueryOptions().setConsistencyLevel(ConsistencyLevel.QUORUM);
 
 			Cluster.Builder builder = Cluster.builder().addContactPoint(host).withPort(port).withMaxSchemaAgreementWaitSeconds(20).withQueryOptions(queryOptions);
 
@@ -300,11 +300,9 @@ public class CassandraConnection implements AutoCloseable {
 	public boolean markMigration(String fileName, String sha) {
 		return markMigration(fileName, sha, false);
 	}
-
 	public String getMigrationMd5(String fileName) {
 		File file = new File(fileName);
-		Statement query = new SimpleStatement("SELECT sha FROM migrations WHERE name=?", file.getName())
-				.setConsistencyLevel(ConsistencyLevel.QUORUM);
+		Statement query = new SimpleStatement("SELECT sha FROM migrations WHERE name=?", file.getName()).setConsistencyLevel(ConsistencyLevel.QUORUM);
 
 		ResultSet result = execute(query);
 		if (result.isExhausted()) {
