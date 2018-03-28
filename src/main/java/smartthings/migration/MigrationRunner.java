@@ -1,6 +1,7 @@
 package smartthings.migration;
 
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
 import com.google.common.base.Charsets;
 import com.google.common.io.CharSource;
 import com.google.common.io.Files;
@@ -54,13 +55,27 @@ public class MigrationRunner {
 				connection.setupMigration();
 
 				// attempt to become leader
-				String currentHost = InetAddress.getLocalHost().getHostName();
-				boolean isLeader = connection.upsertLockTable(true, currentHost).wasApplied();
+				String currentHost = InetAddress.getLocalHost().getHostName().trim();
+				ResultSet resultSet = connection.execute("SELECT * from databasechangelock where id = 1");
+				Row row  = resultSet.one();
 
-				ResultSet resultSet = connection.execute("SELECT lockedby from databasechangelock where id = 1");
-				String migrationRunnerHost = resultSet.one().getString("lockedby");
+				String migrationRunnerHost = null;
+				boolean isLeader = false;
 
-				if (isLeader && currentHost.equals(migrationRunnerHost)){
+				if(row != null){
+					migrationRunnerHost = row.getString("lockedby").trim();
+
+					if(migrationRunnerHost.equals(currentHost)){
+						isLeader = true;
+					}else{
+						//obtain lock
+						isLeader = connection.upsertLockTable(true, currentHost).wasApplied();
+					}
+				}else{
+					isLeader = connection.insertLock(true, currentHost).wasApplied();
+				}
+
+				if (isLeader){
 					logger.info("Starting Migration.... ");
 
 					connection.backfillMigrations(); //Cleans up old style migrations with full file path
@@ -125,14 +140,10 @@ public class MigrationRunner {
 
 		@Override
 		public void run() {
-			int maxIterations = 500;
-			int iterations = 0;
-			while (connection.isMigrationRunning() && (iterations <= maxIterations)) {
+
+			while (connection.isMigrationRunning()) {
 				logger.info("Migration is running.. please wait..");
-				iterations++;
-				if(iterations == maxIterations) {
-					logger.info("Max number of iterations reached");
-				}
+
 				try {
 					Thread.sleep(2000);
 				} catch (InterruptedException e) {
