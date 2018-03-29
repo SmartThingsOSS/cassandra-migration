@@ -63,13 +63,14 @@ public class MigrationRunner {
 				boolean isLeader = false;
 
 				if(row != null){
-					migrationRunnerHost = row.getString("lockedby").trim();
+					migrationRunnerHost = row.getString("lockedby");
 
-					if(migrationRunnerHost.equals(currentHost)){
-						isLeader = true;
-					}else{
-						//obtain lock
+					if(migrationRunnerHost == null){
+						isLeader = connection.upsertLockTableWithNull(true, currentHost).wasApplied();
+					}else if(migrationRunnerHost.equals("NONE")){
 						isLeader = connection.upsertLockTable(true, currentHost).wasApplied();
+					} else if(migrationRunnerHost.trim().equals(currentHost)){
+						isLeader = true;
 					}
 				}else{
 					isLeader = connection.insertLock(true, currentHost).wasApplied();
