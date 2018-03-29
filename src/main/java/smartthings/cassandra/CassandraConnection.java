@@ -40,10 +40,10 @@ public class CassandraConnection implements AutoCloseable {
 
 	private String cassandraVersion;
 
-	private static String UPSERT_LOCKTABLE = "UPDATE databasechangelock SET locked = ?, lockedby = ? WHERE id = 1 IF locked = false";
-	private static String UPSERT_LOCKTABLE_WITH_NULL = "UPDATE databasechangelock SET locked = ?, lockedby = ? WHERE id = 1 IF lockedby = null";
-	private static String UPSERT_RELEASE_LOCK = "UPDATE databasechangelock SET locked = ?, lockedby = ? WHERE id = 1 if locked = true";
-	private static String INSERT_LOCK = "INSERT INTO databasechangelock(id, locked, lockedby) values(1, ?, ?) if not exists";
+	private static String UPSERT_LOCKTABLE = "UPDATE databasechangelock USING TTL 1000 SET locked = ?, lockedby = ? WHERE id = 1 IF locked = false";
+	private static String UPSERT_LOCKTABLE_WITH_NULL = "UPDATE databasechangelock USING TTL 1000 SET locked = ?, lockedby = ? WHERE id = 1 IF lockedby = null";
+	private static String UPSERT_RELEASE_LOCK = "UPDATE databasechangelock USING TTL 1000 SET locked = ?, lockedby = ? WHERE id = 1 if locked = true";
+	private static String INSERT_LOCK = "INSERT INTO databasechangelock(id, locked, lockedby) values(1, ?, ?) if not exists USING TTL 1000";
 
 
 
