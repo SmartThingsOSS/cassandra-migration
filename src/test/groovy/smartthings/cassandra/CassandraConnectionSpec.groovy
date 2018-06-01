@@ -10,10 +10,12 @@ class CassandraConnectionSpec extends Specification {
 	CassandraConnection cassandraConnection
 
 	Session session = Mock()
+	CassandraLock lock = Mock()
 
 	void setup() {
 		MigrationParameters parameters = new MigrationParameters.Builder().setSession(session).build()
-		cassandraConnection = new CassandraConnection(parameters)
+		cassandraConnection = new CassandraConnection(parameters, '')
+		cassandraConnection.lock = lock
 	}
 
 	def "Migration is successful"() {
@@ -22,6 +24,7 @@ class CassandraConnectionSpec extends Specification {
 		ResultSet migrationsResultSet = Mock()
 		ResultSet createResultSet = Mock()
 		ExecutionInfo createExecutionInfo = Mock()
+
 
 		when:
 		cassandraConnection.runMigration(migrationFileName, 'CREATE TABLE;', 'SHA1', false)
@@ -32,6 +35,8 @@ class CassandraConnectionSpec extends Specification {
 		1 * session.execute('CREATE TABLE;') >> createResultSet
 		1 * createResultSet.getExecutionInfo() >> createExecutionInfo
 		1 * createExecutionInfo.isSchemaInAgreement() >> true
+		_ * lock.isMine() >> true
+		_ * lock.keepAlive()
 		0 * _
 	}
 
@@ -46,6 +51,8 @@ class CassandraConnectionSpec extends Specification {
 		then:
 		1 * session.execute('INSERT INTO migrations (name, sha) VALUES (?, ?) IF NOT EXISTS;', [migrationFileName, 'SHA1']) >> migrationsResultSet
 		1 * migrationsResultSet.wasApplied() >> false
+		_ * lock.isMine() >> true
+		_ * lock.keepAlive()
 		0 * _
 	}
 
@@ -68,6 +75,8 @@ class CassandraConnectionSpec extends Specification {
 		1 * createExecutionInfo.isSchemaInAgreement() >> false
 		1 * session.execute('DELETE FROM migrations WHERE name = ? IF EXISTS', [migrationFileName]) >> removeResultSet
 		1 * removeResultSet.wasApplied() >> true
+		_ * lock.isMine() >> true
+		_ * lock.keepAlive()
 		0 * _
 		thrown(CassandraMigrationException)
 	}
@@ -81,15 +90,12 @@ class CassandraConnectionSpec extends Specification {
 		String result = cassandraConnection.getMigrationMd5('/tmp/add-column.cql')
 
 		then:
-		1 * session.execute(_ as Statement) >> { SimpleStatement s ->
-			assert s.getQueryString() == 'SELECT sha FROM migrations WHERE name=?'
-			assert s.getObject(0) == 'add-column.cql'
-			assert s.getConsistencyLevel() == ConsistencyLevel.QUORUM
-			resultSet
-		}
+		1 * session.execute('SELECT sha FROM migrations WHERE name=?', ['add-column.cql']) >> resultSet
 		1 * resultSet.isExhausted() >> false
 		1 * resultSet.one() >> row
 		1 * row.getString('sha') >> '1234567890'
+		_ * lock.isMine() >> true
+		_ * lock.keepAlive()
 		0 * _
 		result == '1234567890'
 	}
@@ -102,13 +108,10 @@ class CassandraConnectionSpec extends Specification {
 		String result = cassandraConnection.getMigrationMd5('/tmp/add-column.cql')
 
 		then:
-		1 * session.execute(_ as Statement) >> { SimpleStatement s ->
-			assert s.getQueryString() == 'SELECT sha FROM migrations WHERE name=?'
-			assert s.getObject(0) == 'add-column.cql'
-			assert s.getConsistencyLevel() == ConsistencyLevel.QUORUM
-			resultSet
-		}
+		1 * session.execute('SELECT sha FROM migrations WHERE name=?', ['add-column.cql']) >> resultSet
 		1 * resultSet.isExhausted() >> true
+		_ * lock.isMine() >> true
+		_ * lock.keepAlive()
 		0 * _
 		result == null
 	}
