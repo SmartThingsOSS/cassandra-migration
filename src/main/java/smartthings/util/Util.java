@@ -1,8 +1,8 @@
 package smartthings.util;
 
-import com.google.common.base.Charsets;
-import com.google.common.hash.Hashing;
-import com.google.common.io.Files;
+import com.datastax.oss.driver.shaded.guava.common.base.Charsets;
+import com.datastax.oss.driver.shaded.guava.common.hash.Hashing;
+import com.datastax.oss.driver.shaded.guava.common.io.Files;
 
 import java.io.File;
 import java.io.IOException;

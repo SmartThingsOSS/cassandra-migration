@@ -4,8 +4,8 @@ buildscript {
 	}
 
 	dependencies {
-		classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.1'
-		classpath 'com.github.ben-manes:gradle-versions-plugin:0.13.0'
+		classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
+		classpath 'com.github.ben-manes:gradle-versions-plugin:0.27.0'
 	}
 }
 
@@ -24,20 +24,22 @@ targetCompatibility = "1.8"
 
 
 repositories {
+	mavenLocal()
+	maven {
+		url = "https://oss.sonatype.org/content/repositories/snapshots/"
+	}
 	mavenCentral()
 }
 
 dependencies {
-	compile 'com.datastax.cassandra:cassandra-driver-core:3.2.0'
-	compile 'com.google.guava:guava:19.0'
+	compile 'com.datastax.oss:java-driver-core:4.3.1'
 
 	testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
 	testCompile 'org.codehaus.groovy:groovy-all:2.4.7'
-	testCompile 'org.cassandraunit:cassandra-unit:3.0.0.1'
-	testCompile 'cglib:cglib-nodep:3.2.4'
-	testCompile 'org.objenesis:objenesis:2.4'
-	testRuntime 'io.netty:netty-all:4.1.4.Final'
-	testRuntime 'ch.qos.logback:logback-classic:1.1.7'
+	testCompile 'org.cassandraunit:cassandra-unit:4.2.2.0-SNAPSHOT'
+	testCompile 'cglib:cglib-nodep:3.3.0'
+	testCompile 'org.objenesis:objenesis:3.1'
+	testRuntime 'ch.qos.logback:logback-classic:1.2.3'
 }
 
 jacocoTestReport {

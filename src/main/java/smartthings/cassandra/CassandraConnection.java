@@ -1,8 +1,14 @@
 package smartthings.cassandra;
 
-import com.datastax.driver.core.*;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
+import com.datastax.oss.driver.api.core.*;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.core.ssl.ProgrammaticSslEngineFactory;
+import com.datastax.oss.driver.shaded.guava.common.base.Charsets;
+import com.datastax.oss.driver.shaded.guava.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import smartthings.migration.CassandraMigrationException;
@@ -14,8 +20,10 @@ import javax.net.ssl.TrustManagerFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.security.KeyStore;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,11 +38,12 @@ public class CassandraConnection implements AutoCloseable {
 	private String truststorePassword;
 	private String keystorePath;
 	private String keystorePassword;
-	private Cluster cluster;
-	private Session session;
+	private CqlSession session;
+	private boolean mySession = false;
 	private String keyspace;
 	private String host;
 	private int port;
+	private String localDatacenter;
 	private String username;
 	private String password;
 
@@ -53,38 +62,44 @@ public class CassandraConnection implements AutoCloseable {
 		if (session == null) {
 			this.host = parameters.getHost();
 			this.port = parameters.getPort();
+			this.localDatacenter = parameters.getLocalDatacenter();
 			this.username = parameters.getUsername();
 			this.password = parameters.getPassword();
 			this.truststorePassword = parameters.getTruststorePassword();
 			this.truststorePath = parameters.getTruststorePath();
 			this.keystorePassword = parameters.getKeystorePassword();
 			this.keystorePath = parameters.getKeystorePath();
+			this.mySession = true;
 		}
 		this.keyspace = parameters.getKeyspace();
-
 	}
 
 	public void connect() throws Exception {
 		if (session == null) {
 			logger.debug("Connecting to Cassandra at " + host + ":" + port);
 
-			QueryOptions queryOptions = new QueryOptions().setConsistencyLevel(ConsistencyLevel.QUORUM);
-
-			Cluster.Builder builder = Cluster.builder().addContactPoint(host).withPort(port).withMaxSchemaAgreementWaitSeconds(20).withQueryOptions(queryOptions);
+			CqlSessionBuilder builder = CqlSession.builder()
+				.addContactPoint(new InetSocketAddress(host, port))
+				.withLocalDatacenter(localDatacenter)
+				.withConfigLoader(
+					DriverConfigLoader.programmaticBuilder()
+						.withDuration(DefaultDriverOption.CONTROL_CONNECTION_AGREEMENT_TIMEOUT, Duration.ofSeconds(20))
+						.withString(DefaultDriverOption.REQUEST_CONSISTENCY, ConsistencyLevel.QUORUM.toString())
+						.build()
+				);
 
 			if (all(truststorePath, truststorePassword, keystorePath, keystorePassword)) {
 				logger.debug("Using SSL for the connection");
 				SSLContext sslContext = getSSLContext(truststorePath, truststorePassword, keystorePath, keystorePassword);
-				builder.withSSL(JdkSSLOptions.builder().withSSLContext(sslContext).withCipherSuites(cipherSuites).build());
+				builder.withSslEngineFactory(new ProgrammaticSslEngineFactory(sslContext, cipherSuites));
 			}
 
 			if (username != null && password != null) {
 				logger.debug("Using withCredentials for the connection");
-				builder.withCredentials(username, password);
+				builder.withAuthCredentials(username, password);
 			}
 
-			cluster = builder.build();
-			session = cluster.connect();
+			session = builder.build();
 		}
 
 		if (keyspace != null) {
@@ -103,9 +118,9 @@ public class CassandraConnection implements AutoCloseable {
 			lock.unlock();
 		}
 
-		if (cluster != null) {
+		if (session != null && isMySession()) {
 			//We don't close the connection if we were given a session
-			cluster.close();
+			session.close();
 		}
 	}
 
@@ -135,7 +150,7 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public ResultSet execute(String query, Object... params) {
-		return session.execute(query, params);
+		return session.execute(SimpleStatement.newInstance(query, params));
 	}
 
 
@@ -174,7 +189,7 @@ public class CassandraConnection implements AutoCloseable {
 	}
 
 	public void setupMigration() {
-		if (!session.getCluster().getMetadata().checkSchemaAgreement()) {
+		if (!session.checkSchemaAgreement()) {
 			throw new CassandraMigrationException("Migration table setup precheck: schema not in agreement");
 		}
 		if (!tableExists("migrations")) {
@@ -291,18 +306,18 @@ public class CassandraConnection implements AutoCloseable {
 	public String getMigrationMd5(String fileName) {
 		File file = new File(fileName);
 		ResultSet result = executeWithLock("SELECT sha FROM migrations WHERE name=?", file.getName());
-		if (result.isExhausted()) {
+		if (result.isFullyFetched()) {
 			return null;
 		}
 
 		return result.one().getString("sha");
 	}
 
-	public Session getSession() {
+	public CqlSession getSession() {
 		return session;
 	}
 
-	public void setSession(Session session) {
+	public void setSession(CqlSession session) {
 		this.session = session;
 	}
 
@@ -376,5 +391,13 @@ public class CassandraConnection implements AutoCloseable {
 
 	public String getOwnerName() {
 		return ownerName;
+	}
+
+	/**
+	 * Returns `true` if CassandraConnection created it's own CqlSession. `false` if connection was parameterized by caller.
+	 * @return
+	 */
+	public boolean isMySession() {
+		return mySession;
 	}
 }
