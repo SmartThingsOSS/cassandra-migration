@@ -1,7 +1,8 @@
 package smartthings.migration
 
-import com.datastax.driver.core.Cluster
-import com.datastax.driver.core.ResultSet
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.CqlSessionBuilder
+import com.datastax.oss.driver.api.core.cql.ResultSet
 import org.cassandraunit.CassandraCQLUnit
 import org.cassandraunit.dataset.CQLDataSet
 import org.cassandraunit.dataset.cql.ClassPathCQLDataSet
@@ -73,12 +74,13 @@ class MigrationRunnerSpec extends Specification {
 
 	def 'run migrations via session'() {
 		given:
-
-		Cluster.Builder builder = Cluster.builder().addContactPoint('localhost').withPort(9142);
-
-
 		def params = new MigrationParameters.Builder()
-			.setSession(builder.build().connect())
+			.setSession(
+				CqlSessionBuilder.newInstance()
+					.addContactPoint(new InetSocketAddress('localhost', 9142))
+					.withLocalDatacenter("datacenter1")
+					.build()
+			)
 			.setKeyspace(keyspace)
 			.setMigrationsLogFile('/cassandra/success.changelog')
 			.build()
@@ -206,8 +208,8 @@ class MigrationRunnerSpec extends Specification {
 	List<Map> processRows(ResultSet results) {
 		results.all().collect { row ->
 			row.columnDefinitions.collect { column ->
-				assert column.keyspace == keyspace
-				[column.name, row.getString(column.name)]
+				assert column.keyspace.asCql(true) == keyspace
+				[column.name.asCql(true), row.getString(column.name)]
 			}.collectEntries()
 		}
 	}

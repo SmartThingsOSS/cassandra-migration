@@ -1,12 +1,12 @@
 package smartthings.migration;
 
-import com.datastax.driver.core.Session;
-
+import com.datastax.oss.driver.api.core.CqlSession;
 import java.io.File;
-import java.util.Optional;
 import java.util.UUID;
 
 public class MigrationParameters {
+
+	private final static String DEFAULT_LOCAL_DC = "datacenter1";
 
 	private Boolean override;
 	private HandlerClass handlerClass;
@@ -25,11 +25,15 @@ public class MigrationParameters {
 	private String keystorePassword;
 	private String leaderId = UUID.randomUUID().toString();
 
-	private Session session;
+	// @See https://docs.datastax.com/en/developer/java-driver/4.2/manual/core/load_balancing/
+	private String localDatacenter = "datacenter1";
+
+	private CqlSession session;
 
 	public MigrationParameters() {
 		host = System.getProperty("host", "localhost");
 		port = Integer.parseInt(System.getProperty("port", "9042"));
+		localDatacenter = System.getProperty("localDatacenter", "datacenter1");
 		keyspace = System.getProperty("keyspace", "test");
 		migrationsPath = System.getProperty("migrationPath", "../migrations");
 
@@ -48,11 +52,11 @@ public class MigrationParameters {
 		override = new Boolean(System.getProperty("override"));
 	}
 
-	public MigrationParameters(Boolean override, HandlerClass handlerClass, File migrationFile, String host, String keyspace, String location, String migrationsPath, String password, String username, int port, String truststorePassword, String truststorePath, String keystorePassword, String keystorePath, String migrationsLogFile) {
-		this(override, handlerClass, migrationFile, host, keyspace, location, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath, migrationsLogFile, null);
+	public MigrationParameters(Boolean override, HandlerClass handlerClass, File migrationFile, String host, String keyspace, String location, String migrationsPath, String password, String username, int port, String truststorePassword, String truststorePath, String keystorePassword, String keystorePath, String migrationsLogFile, String localDatacenter) {
+		this(override, handlerClass, migrationFile, host, keyspace, location, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath, migrationsLogFile, localDatacenter, null);
 	}
 
-	public MigrationParameters(Boolean override, HandlerClass handlerClass, File migrationFile, String host, String keyspace, String location, String migrationsPath, String password, String username, int port, String truststorePassword, String truststorePath, String keystorePassword, String keystorePath, String migrationsLogFile, Session session) {
+	public MigrationParameters(Boolean override, HandlerClass handlerClass, File migrationFile, String host, String keyspace, String location, String migrationsPath, String password, String username, int port, String truststorePassword, String truststorePath, String keystorePassword, String keystorePath, String migrationsLogFile, String localDatacenter, CqlSession session) {
 		this.override = override;
 		this.handlerClass = handlerClass;
 		this.migrationFile = migrationFile;
@@ -68,16 +72,16 @@ public class MigrationParameters {
 		this.truststorePassword = truststorePassword;
 		this.truststorePath = truststorePath;
 		this.migrationsLogFile = migrationsLogFile;
+		this.localDatacenter = localDatacenter;
 		this.session = session;
 	}
 
-	public MigrationParameters(String migrationsLogFile, String keyspace, Session session) {
+	public MigrationParameters(String migrationsLogFile, String keyspace, CqlSession session) {
 		this.override = false;
 		this.migrationsLogFile = migrationsLogFile;
 		this.keyspace = keyspace;
 		this.session = session;
 		this.handlerClass = HandlerClass.MigrationHandler;
-
 	}
 
 	public String toString() {
@@ -209,11 +213,11 @@ public class MigrationParameters {
 		this.migrationsLogFile = migrationsLogFile;
 	}
 
-	public Session getSession() {
+	public CqlSession getSession() {
 		return session;
 	}
 
-	public void setSession(Session session) {
+	public void setSession(CqlSession session) {
 		this.session = session;
 	}
 
@@ -221,6 +225,16 @@ public class MigrationParameters {
 
 	public void setLeaderId(String leaderId) { this.leaderId = leaderId; }
 
+	public String getLocalDatacenter() {
+		if (localDatacenter == null || localDatacenter.isEmpty()) {
+			return DEFAULT_LOCAL_DC;
+		}
+		return localDatacenter;
+	}
+
+	public void setLocalDatacenter(String localDatacenter) {
+		this.localDatacenter = localDatacenter;
+	}
 
 	public static class Builder {
 		private File migrationFile;
@@ -236,8 +250,9 @@ public class MigrationParameters {
 		private String truststorePassword;
 		private String keystorePath;
 		private String keystorePassword;
+		private String localDatacenter;
 
-		private Session session;
+		private CqlSession session;
 
 		public Builder() {}
 
@@ -301,15 +316,19 @@ public class MigrationParameters {
 			return this;
 		}
 
-		public Builder setSession(Session session) {
+		public Builder setLocalDatacenter(String localDatacenter) {
+			this.localDatacenter = localDatacenter;
+			return this;
+		}
+
+		public Builder setSession(CqlSession session) {
 			this.session = session;
 			return this;
 		}
 
 		public MigrationParameters build() {
-
 			if (session == null) {
-				return new MigrationParameters(false, HandlerClass.MigrationHandler, migrationFile, host, keyspace, null, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath, migrationsLogFile);
+				return new MigrationParameters(false, HandlerClass.MigrationHandler, migrationFile, host, keyspace, null, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath, migrationsLogFile, localDatacenter);
 			} else {
 				return new MigrationParameters(migrationsLogFile, keyspace, session);
 			}

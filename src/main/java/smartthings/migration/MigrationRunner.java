@@ -1,9 +1,9 @@
 package smartthings.migration;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.CharSource;
-import com.google.common.io.Files;
-import com.google.common.io.Resources;
+import com.datastax.oss.driver.shaded.guava.common.base.Charsets;
+import com.datastax.oss.driver.shaded.guava.common.io.CharSource;
+import com.datastax.oss.driver.shaded.guava.common.io.Files;
+import com.datastax.oss.driver.shaded.guava.common.io.Resources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import smartthings.cassandra.CassandraConnection;
@@ -99,7 +99,7 @@ public class MigrationRunner {
 			}
 		} else if (migrationParameters.getMigrationFile() != null) {
 			File f = migrationParameters.getMigrationFile();
-			handler.handle(f.getName(), Files.toString(f, Charsets.UTF_8));
+			handler.handle(f.getName(), Files.asCharSource(f, Charsets.UTF_8).read());
 		} else {
 			File migrationsDir = migrationParameters.getMigrationsDir();
 			logger.info("Using migrations Directory " + migrationsDir);
@@ -107,7 +107,7 @@ public class MigrationRunner {
 				File[] files = migrationsDir.listFiles();
 				if (files != null) {
 					for (File file : files) {
-						handler.handle(file.getName(), Files.toString(file, Charsets.UTF_8));
+						handler.handle(file.getName(), Files.asCharSource(file, Charsets.UTF_8).read());
 					}
 				} else {
 					logger.warn("No files found in migrations directory.");
