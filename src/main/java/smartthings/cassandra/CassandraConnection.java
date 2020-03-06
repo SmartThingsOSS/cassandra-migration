@@ -16,9 +16,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import static smartthings.util.Util.all;
 
@@ -296,6 +294,19 @@ public class CassandraConnection implements AutoCloseable {
 		}
 
 		return result.one().getString("sha");
+	}
+
+	public Map<String, String> getMigrationTable() {
+		ResultSet result = executeWithLock("SELECT * FROM migrations");
+		if (result.isExhausted()) {
+			return null;
+		}
+
+		Map<String, String> rows = new HashMap<>();
+
+		result.forEach(cassRow -> rows.put(cassRow.getString("name"), cassRow.getString("sha")));
+
+		return rows;
 	}
 
 	public Session getSession() {

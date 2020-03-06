@@ -72,6 +72,9 @@ public class MigrationRunner {
 			case ExternalHandler:
 				handler = new ExecuteExternallyHandler(connection, migrationParameters);
 				break;
+			case BulkMigrationHandler:
+				handler = new BulkMigrationHandler(connection, migrationParameters.getOverride());
+				break;
 			case MigrationHandler:
 			default:
 				handler = new MigrationHandler(connection, migrationParameters.getOverride());
