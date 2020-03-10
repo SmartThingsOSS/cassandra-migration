@@ -71,12 +71,12 @@ public class MigrationParameters {
 		this.session = session;
 	}
 
-	public MigrationParameters(String migrationsLogFile, String keyspace, Session session) {
+	public MigrationParameters(String migrationsLogFile, String keyspace, Session session, HandlerClass handler) {
 		this.override = false;
 		this.migrationsLogFile = migrationsLogFile;
 		this.keyspace = keyspace;
 		this.session = session;
-		this.handlerClass = HandlerClass.MigrationHandler;
+		this.handlerClass = handler;
 
 	}
 
@@ -237,6 +237,8 @@ public class MigrationParameters {
 		private String keystorePath;
 		private String keystorePassword;
 
+		private HandlerClass handler = HandlerClass.MigrationHandler;
+
 		private Session session;
 
 		public Builder() {}
@@ -306,17 +308,22 @@ public class MigrationParameters {
 			return this;
 		}
 
+		public Builder setHandlerClass(HandlerClass handler) {
+			this.handler = handler;
+			return this;
+		}
+
 		public MigrationParameters build() {
 
 			if (session == null) {
-				return new MigrationParameters(false, HandlerClass.MigrationHandler, migrationFile, host, keyspace, null, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath, migrationsLogFile);
+				return new MigrationParameters(false, handler, migrationFile, host, keyspace, null, migrationsPath, password, username, port, truststorePassword, truststorePath, keystorePassword, keystorePath, migrationsLogFile);
 			} else {
-				return new MigrationParameters(migrationsLogFile, keyspace, session);
+				return new MigrationParameters(migrationsLogFile, keyspace, session, handler);
 			}
 		}
 	}
 
 	public enum HandlerClass {
-		MigrationHandler, MarkRunHandler, ExternalHandler
+		MigrationHandler, MarkRunHandler, ExternalHandler, BulkMigrationHandler
 	}
 }
