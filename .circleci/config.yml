@@ -36,7 +36,7 @@ jobs:
 
       - run:
           name: Gradle Check and Coverage
-          command: ./gradlew check jacocoTestReport
+          command: ./gradlew check jacocoTestReport -PsmartThingsUserName=$ARTIFACTORY_USERNAME -PsmartThingsPassword=$ARTIFACTORY_PASSWORD
 
       - run:
           name: Codecov
@@ -87,24 +87,28 @@ jobs:
 
       - run:
           name: Release to Bintray
-          command: ./gradlew bintrayUpload
+          command: ./gradlew publish -PsmartThingsUserName=$ARTIFACTORY_USERNAME -PsmartThingsPassword=$ARTIFACTORY_PASSWORD
 
 workflows:
   version: 2
 
   main:
     jobs:
-      - build
+      - build:
+          context: smartthingsoss
       - test:
+          context: smartthingsoss
           requires:
             - build
       - release_snapshot:
+          context: smartthingsoss
           requires:
             - test
           filters:
             branches:
               only: master
       - release:
+          context: smartthingsoss
           requires:
             - test
           filters:
