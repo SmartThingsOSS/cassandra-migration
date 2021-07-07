@@ -1,17 +1,16 @@
 buildscript {
 	repositories {
-		jcenter()
+		mavenCentral()
+		gradlePluginPortal()
 	}
 
 	dependencies {
-		classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.1'
 		classpath 'com.github.ben-manes:gradle-versions-plugin:0.13.0'
 	}
 }
 
 group = "smartthings"
 version = file('version.txt').text.trim()
-
 
 apply plugin: 'groovy'
 apply plugin: 'idea'
