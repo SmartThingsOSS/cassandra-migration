@@ -5,11 +5,14 @@ import com.datastax.driver.core.ResultSet
 import org.cassandraunit.CassandraCQLUnit
 import org.cassandraunit.dataset.CQLDataSet
 import org.cassandraunit.dataset.cql.ClassPathCQLDataSet
+import smartthings.cassandra.CassandraLock
 import spock.lang.Specification
 import smartthings.cassandra.CassandraConnection
+import spock.util.concurrent.PollingConditions
 
 class MigrationRunnerSpec extends Specification {
 
+	static final String owner = 'owner'
 	static final String keyspace = 'test'
 
 	CassandraCQLUnit cassandraCQLUnit
@@ -28,7 +31,6 @@ class MigrationRunnerSpec extends Specification {
 
 	def 'run migrations'() {
 		given:
-
 		def params = new MigrationParameters.Builder()
 			.setHost('localhost')
 			.setPort(9142)
@@ -36,7 +38,7 @@ class MigrationRunnerSpec extends Specification {
 			.setMigrationsLogFile('/cassandra/success.changelog')
 			.build()
 
-		CassandraConnection connection = new CassandraConnection(params)
+		CassandraConnection connection = new CassandraConnection(params, owner)
 		connection.connect()
 
 		when:
@@ -81,7 +83,7 @@ class MigrationRunnerSpec extends Specification {
 			.setMigrationsLogFile('/cassandra/success.changelog')
 			.build()
 
-		CassandraConnection connection = new CassandraConnection(params)
+		CassandraConnection connection = new CassandraConnection(params, owner)
 		connection.connect()
 
 		when:
@@ -123,7 +125,7 @@ class MigrationRunnerSpec extends Specification {
 			.setMigrationsLogFile('/cassandra/failure.changelog')
 			.build()
 
-		CassandraConnection connection = new CassandraConnection(params)
+		CassandraConnection connection = new CassandraConnection(params, owner)
 		connection.connect()
 
 		when:
@@ -141,6 +143,64 @@ class MigrationRunnerSpec extends Specification {
 		//TODO: batch would allow rollback
 		def data = processRows(connection.execute('SELECT * FROM a')).sort()
 		data == [[id: '1', value: 'success'], [id: '3', value: 'fail-added']]
+	}
+
+	def 'migration does not run while lock is held'() {
+		given:
+		def conditions = new PollingConditions(delay: 0.1, factor: 0, timeout: 60)
+
+		and:
+		def params = new MigrationParameters.Builder()
+				.setHost('localhost')
+				.setPort(9142)
+				.setKeyspace(keyspace)
+				.setMigrationsLogFile('/cassandra/success.changelog')
+				.build()
+
+		and:
+		CassandraConnection connection = new CassandraConnection(params, owner)
+		connection.connect()
+		CassandraLock lock = new CassandraLock(connection)
+
+		expect: 'lock is acquired'
+		lock.tryLock()
+		!runner.running
+
+		when: 'start migration runner'
+		def t = Thread.start {
+			runner.run(params)
+		}
+
+		then: 'thread is running but runner is not running migration'
+		t.alive
+		!runner.running
+
+		when: 'wait 5 seconds'
+		Thread.sleep(5000)
+
+		then: 'thread is running but runner is not running migration'
+		t.alive
+		!runner.running
+
+		when: 'lock is released'
+		lock.unlock()
+
+		then: 'thread is running and runner eventually starts'
+		t.alive
+		conditions.eventually {
+			assert runner.running
+		}
+
+		and: 'lock is owned by runner'
+		assert lock.locked
+		assert !lock.mine
+
+		when: 'wait for runner to finish'
+		t.join()
+
+		then: 'runner is stopped and lock is released'
+		!runner.running
+		!lock.locked
 	}
 
 	List<Map> processRows(ResultSet results) {

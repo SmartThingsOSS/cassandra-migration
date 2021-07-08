@@ -39,15 +39,13 @@ public class CassandraConnection implements AutoCloseable {
 	private String password;
 
 	private String cassandraVersion;
+	private final String ownerName;
 
-	private static String UPSERT_LOCKTABLE = "UPDATE databasechangelock USING TTL 1000 SET locked = ?, lockedby = ? WHERE id = 1 IF locked = false";
-	private static String UPSERT_LOCKTABLE_WITH_NULL = "UPDATE databasechangelock USING TTL 1000 SET locked = ?, lockedby = ? WHERE id = 1 IF lockedby = null";
-	private static String UPSERT_RELEASE_LOCK = "UPDATE databasechangelock USING TTL 1000 SET locked = ?, lockedby = ? WHERE id = 1 if locked = true";
-	private static String INSERT_LOCK = "INSERT INTO databasechangelock(id, locked, lockedby) values(1, ?, ?) if not exists USING TTL 1000";
+	private CassandraLock lock;
 
+	public CassandraConnection(MigrationParameters parameters, String ownerName) {
+		this.ownerName = ownerName;
 
-
-	public CassandraConnection(MigrationParameters parameters) {
 		cipherSuites[0] = "TLS_RSA_WITH_AES_128_CBC_SHA";
 		cipherSuites[1] = "TLS_RSA_WITH_AES_256_CBC_SHA";
 
@@ -72,7 +70,12 @@ public class CassandraConnection implements AutoCloseable {
 
 			QueryOptions queryOptions = new QueryOptions().setConsistencyLevel(ConsistencyLevel.QUORUM);
 
-			Cluster.Builder builder = Cluster.builder().addContactPoint(host).withPort(port).withMaxSchemaAgreementWaitSeconds(20).withQueryOptions(queryOptions);
+			Cluster.Builder builder = Cluster.builder()
+				.withoutJMXReporting()
+				.addContactPoint(host)
+				.withPort(port)
+				.withMaxSchemaAgreementWaitSeconds(20)
+				.withQueryOptions(queryOptions);
 
 			if (all(truststorePath, truststorePassword, keystorePath, keystorePassword)) {
 				logger.debug("Using SSL for the connection");
@@ -95,30 +98,16 @@ public class CassandraConnection implements AutoCloseable {
 
 		cassandraVersion = execute("select release_version from system.local where key = 'local'")
 				.one().getString(0);
+
+		lock = new CassandraLock(this);
 	}
-
-	public ResultSet checkMigrationRunning() {
-		ResultSet resultset = execute("SELECT * FROM databasechangelock WHERE id = 1");
-		return resultset;
-	}
-
-	public boolean isMigrationRunning() {
-
-		boolean isRunning = false;
-
-		ResultSet resultSet = execute("SELECT * FROM databasechangelock WHERE id = 1");
-
-		Row row = resultSet.one();
-		if(row != null){
-			isRunning = row.getBool("locked");
-		}
-
-		return isRunning;
-	}
-
 
 	@Override
 	public void close() {
+		if (lock != null) {
+			lock.unlock();
+		}
+
 		if (cluster != null) {
 			//We don't close the connection if we were given a session
 			cluster.close();
@@ -150,17 +139,25 @@ public class CassandraConnection implements AutoCloseable {
 		execute("use " + keyspace);
 	}
 
-	public ResultSet execute(String query) {
-		return session.execute(query);
+	public ResultSet execute(String query, Object... params) {
+		return session.execute(query, params);
 	}
 
-	public ResultSet execute(Statement query) {
-		return session.execute(query);
+
+	public ResultSet executeWithLock(String query, Object... params) {
+		if (lock.isMine()) {
+			lock.keepAlive();
+			ResultSet rs = execute(query, params);
+			lock.keepAlive();
+			return rs;
+		}
+
+		throw new CassandraLockException("attempt to execute without lock ownership");
 	}
 
 	public void backfillMigrations() {
 		if (tableExists("migrations")) {
-			ResultSet result = execute("SELECT * FROM migrations");
+			ResultSet result = executeWithLock("SELECT * FROM migrations");
 			List<Row> results = result.all();
 			int numMigrated = 0;
 			logger.info("Checking for migrations that need to be backfilled");
@@ -170,7 +167,7 @@ public class CassandraConnection implements AutoCloseable {
 
 				if (name.contains("/")) {
 					String truncatedName = name.substring(name.lastIndexOf("/") + 1);
-					ResultSet rs = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) IF NOT EXISTS", truncatedName, sha);
+					ResultSet rs = executeWithLock("INSERT INTO migrations (name, sha) VALUES (?, ?) IF NOT EXISTS", truncatedName, sha);
 					if (rs.wasApplied()) {
 						numMigrated++;
 						logger.info("Backfilled migration. {} -> {}", name, truncatedName);
@@ -181,52 +178,19 @@ public class CassandraConnection implements AutoCloseable {
 		}
 	}
 
-	public ResultSet execute(String query, Object... params) {
-		return session.execute(query, params);
-	}
-
 	public void setupMigration() {
-
 		if (!session.getCluster().getMetadata().checkSchemaAgreement()) {
 			throw new CassandraMigrationException("Migration table setup precheck: schema not in agreement");
 		}
 		if (!tableExists("migrations")) {
 			logger.info("migrations table not found creating.");
-			ResultSet rs = execute("CREATE TABLE IF NOT EXISTS migrations " +
+			ResultSet rs = executeWithLock("CREATE TABLE IF NOT EXISTS migrations " +
 					"(name text, sha text," +
 					"PRIMARY KEY (name));");
 			if (!rs.getExecutionInfo().isSchemaInAgreement()) {
 				throw new CassandraMigrationException("Migration table creation postcheck: schema not in agreement");
 			}
 		}
-		if (!tableExists("databasechangelock")) {
-			logger.info("lock table not found creating.");
-			ResultSet rs = execute("CREATE TABLE IF NOT EXISTS databasechangelock " +
-					"(id int, locked boolean, lockedby text, " +
-					"PRIMARY KEY (id));");
-			if (!rs.getExecutionInfo().isSchemaInAgreement()) {
-				throw new CassandraMigrationException("databasechangelock table creation postcheck: schema not in agreement");
-			}
-
-			//populate the entry
-			//execute(INSERT_LOCK);
-		}
-	}
-
-	public ResultSet insertLock(Object ... params){
-		return execute(INSERT_LOCK, params);
-	}
-
-	public ResultSet upsertLockTable(Object... params) {
-		return execute(UPSERT_LOCKTABLE, params);
-	}
-
-	public ResultSet upsertLockTableWithNull(Object... params) {
-		return execute(UPSERT_LOCKTABLE_WITH_NULL, params);
-	}
-
-	public void releaseLockTable(Object... params) {
-		execute(UPSERT_RELEASE_LOCK, params);
 	}
 
 	public boolean tableExists(String tableName) {
@@ -265,7 +229,7 @@ public class CassandraConnection implements AutoCloseable {
 				for (String statement : statements) {
 					String trimmedStatement = statement.trim();
 					if (!trimmedStatement.equals("")) {
-						ResultSet resultSet = execute(trimmedStatement + ";");
+						ResultSet resultSet = executeWithLock(trimmedStatement + ";");
 						// may need to up Cluster.Builder.withMaxSchemaAgreementWaitSeconds
 						if (!resultSet.getExecutionInfo().isSchemaInAgreement()) {
 							logger.error("Schema is not in agreement");
@@ -296,7 +260,7 @@ public class CassandraConnection implements AutoCloseable {
 
 	private void removeMigration(String fileName) {
 		File file = new File(fileName);
-		ResultSet result = execute("DELETE FROM migrations WHERE name = ? IF EXISTS", file.getName());
+		ResultSet result = executeWithLock("DELETE FROM migrations WHERE name = ? IF EXISTS", file.getName());
 		if (!result.wasApplied()) {
 			logger.error("removing migration mark failed for " + fileName);
 		}
@@ -308,7 +272,7 @@ public class CassandraConnection implements AutoCloseable {
 
 		//We use the light weight transaction to make sure another process hasn't started the work, but only if we aren't overriding
 		String ifClause = override ? "" : "IF NOT EXISTS";
-		ResultSet result = execute("INSERT INTO migrations (name, sha) VALUES (?, ?) " + ifClause + ";", file.getName(), sha);
+		ResultSet result = executeWithLock("INSERT INTO migrations (name, sha) VALUES (?, ?) " + ifClause + ";", file.getName(), sha);
 
 		return override || result.wasApplied();
 	}
@@ -316,11 +280,22 @@ public class CassandraConnection implements AutoCloseable {
 	public boolean markMigration(String fileName, String sha) {
 		return markMigration(fileName, sha, false);
 	}
+
+	public void acquireLock() throws InterruptedException {
+		while(!lock.tryLock()) {
+			logger.info("Unable to acquire lock owned by %s. Sleeping...", lock.getOwner());
+			Thread.sleep(1000);
+		}
+		logger.info("Lock acquired!");
+	}
+
+	public void keepLockAlive() {
+		lock.keepAlive();
+	}
+
 	public String getMigrationMd5(String fileName) {
 		File file = new File(fileName);
-		Statement query = new SimpleStatement("SELECT sha FROM migrations WHERE name=?", file.getName()).setConsistencyLevel(ConsistencyLevel.QUORUM);
-
-		ResultSet result = execute(query);
+		ResultSet result = executeWithLock("SELECT sha FROM migrations WHERE name=?", file.getName());
 		if (result.isExhausted()) {
 			return null;
 		}
@@ -402,5 +377,9 @@ public class CassandraConnection implements AutoCloseable {
 
 	public void setKeystorePassword(String keystorePassword) {
 		this.keystorePassword = keystorePassword;
+	}
+
+	public String getOwnerName() {
+		return ownerName;
 	}
 }

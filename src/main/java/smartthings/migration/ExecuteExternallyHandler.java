@@ -31,7 +31,10 @@ public class ExecuteExternallyHandler implements Handler {
 			System.out.println(command);
 			try {
 				Process process = Runtime.getRuntime().exec(command);
-				process.waitFor();
+				while (process.isAlive()) {
+					connection.keepLockAlive();
+					Thread.sleep(1000);
+				}
 				if (process.exitValue() == 0) {
 					connection.markMigration(fileName, md5);
 				}
