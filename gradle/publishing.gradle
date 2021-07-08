@@ -10,6 +10,7 @@ task sourceJar(type: Jar) {
 publishing {
 	publications {
 		maven(MavenPublication) {
+			artifactId = 'cassandra-migration'
 			from components.java
 			artifact sourceJar
 		}
