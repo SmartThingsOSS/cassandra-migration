@@ -2,6 +2,19 @@ Simple application for migrating cassandra databases
 
 [![Circle CI](https://circleci.com/gh/SmartThingsOSS/cassandra-migration/tree/master.svg?style=svg)](https://circleci.com/gh/SmartThingsOSS/cassandra-migration/tree/master)
 [![codecov.io](https://codecov.io/github/SmartThingsOSS/cassandra-migration/coverage.svg?branch=master)](https://codecov.io/github/SmartThingsOSS/cassandra-migration?branch=master)
+[![SmartThingsOSS](https://smartthingsoss.jfrog.io/ui/img/jfrog-platform.d5d5c2a5.svg)](https://smartthingsoss.jfrog.io/ui/repos/tree/General/libs-release-local%2Fsmartthings%2Fcassandra-migration)
+### Gradle Resolution
+```
+repositories {
+    maven {
+      url "https://smartthingsoss.jfrog.io/artifactory/libs-release-local"
+    }
+}
+
+dependencies {
+    implementation "smartthings:cassandra-migration:${cassandraMigrationVersion}"
+}
+```
 
 ### Installation
 Extract zipfile into a directory
